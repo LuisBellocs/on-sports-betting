@@ -1,0 +1,9 @@
+# Los scripts y workflows se ejecutan en Linux (GitHub Actions): siempre con saltos de línea LF
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.csv  text eol=lf
+*.ps1  text eol=crlf
+*.pkl  binary
+*.png  binary

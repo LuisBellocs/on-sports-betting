@@ -1,0 +1,105 @@
+# Predice los partidos de cada CSV que se sube a la carpeta partidos/ (por ejemplo,
+# partidos/jornada10_2627.csv) con la última versión del modelo. Los resultados quedan en
+# predicciones/<nombre del archivo>/ (resumen.md, una gráfica por partido y las matrices).
+#
+# También se puede lanzar a mano desde la pestaña Actions indicando el archivo,
+# o con: gh workflow run predecir.yml -f archivo=partidos/jornada10_2627.csv
+name: Predecir partidos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "partidos/*.csv"
+  workflow_dispatch:
+    inputs:
+      archivo:
+        description: "CSV de partidos (ej. partidos/jornada10_2627.csv)"
+        required: true
+      version:
+        description: "Versión del modelo (vacío = la más reciente, ej. modelo-20261023-0800)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: modelo-laliga
+  cancel-in-progress: false
+
+jobs:
+  predecir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TZ: America/Mexico_City
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Elegir archivos de partidos
+        id: archivos
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            LISTA="${{ inputs.archivo }}"
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            LISTA="$(ls partidos/*.csv 2>/dev/null || true)"
+          else
+            LISTA="$(git diff --name-only --diff-filter=AM "${{ github.event.before }}" "${{ github.sha }}" -- 'partidos/*.csv')"
+          fi
+          LISTA="$(echo $LISTA)"
+          echo "lista=$LISTA" >> "$GITHUB_OUTPUT"
+          echo "Archivos a predecir: ${LISTA:-ninguno}"
+
+      - name: Descargar el modelo
+        if: steps.archivos.outputs.lista != ''
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="$(gh release view --json tagName --jq .tagName 2>/dev/null || true)"
+            [ -n "$VERSION" ] || { echo "::error::Todavía no hay ninguna versión del modelo. Ejecuta primero 'Entrenar modelo'."; exit 1; }
+          fi
+          gh release download "$VERSION" --pattern modelo_laliga.pkl --pattern modelo_laliga.py --dir vigente --clobber
+          gh release download "$VERSION" --pattern entorno.txt --dir vigente --clobber || true
+          echo "$VERSION" > vigente/version.txt
+          # mismas versiones de librerías que al entrenar, para que el modelo cargue igual
+          if [ -f vigente/entorno.txt ]; then pip install -q -r vigente/entorno.txt; fi
+          echo "Modelo: $VERSION"
+
+      - name: Predecir
+        if: steps.archivos.outputs.lista != ''
+        run: |
+          VERSION="$(cat vigente/version.txt)"
+          for ARCHIVO in ${{ steps.archivos.outputs.lista }}; do
+            [ -f "$ARCHIVO" ] || { echo "::warning::No existe $ARCHIVO"; continue; }
+            NOMBRE="$(basename "$ARCHIVO" .csv)"
+            SALIDA="predicciones/$NOMBRE"
+            rm -rf "$SALIDA"
+            echo "::group::$ARCHIVO"
+            python vigente/modelo_laliga.py predecir --modelo vigente/modelo_laliga.pkl --ajustes ajustes.csv \
+              --partidos "$ARCHIVO" --salida "$SALIDA" 2>&1 | tee "prediccion_$NOMBRE.txt"
+            echo "::endgroup::"
+            echo "$VERSION" > "$SALIDA/modelo.txt"
+            cp "prediccion_$NOMBRE.txt" "$SALIDA/salida.txt"
+            if [ -f "$SALIDA/resumen.md" ]; then
+              { echo "## $NOMBRE"; echo; tail -n +3 "$SALIDA/resumen.md"; echo; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          python herramientas/publicar_resultados.py indice --repo "${{ github.repository }}"
+          bash herramientas/git_subir.sh "Predicciones de ${{ steps.archivos.outputs.lista }} con $VERSION" predicciones

@@ -1,0 +1,119 @@
+# Reentrena el modelo, guarda la versión y predice los próximos partidos.
+#
+# Se ejecuta:
+#   - martes y viernes a las 02:00 (hora de CDMX), solo si football-data trae resultados nuevos
+#   - al subir cambios en el código, en ajustes.csv o en requirements.txt
+#   - a mano, desde la pestaña Actions ("Run workflow") o con: gh workflow run entrenar.yml
+#
+# Cada entrenamiento crea una versión (release) "modelo-AAAAMMDD-HHMM" con el modelo,
+# el código exacto y el informe. Las versiones anteriores se conservan.
+name: Entrenar modelo
+
+on:
+  schedule:
+    - cron: "0 8 * * 2"   # martes 08:00 UTC = 02:00 CDMX
+    - cron: "0 8 * * 5"   # viernes 08:00 UTC = 02:00 CDMX
+  push:
+    branches: [main]
+    paths:
+      - "modelo_laliga.py"
+      - "ajustes.csv"
+      - "requirements.txt"
+  workflow_dispatch:
+    inputs:
+      predecir_proximos:
+        description: "Predecir también los próximos partidos con cuotas"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: modelo-laliga
+  cancel-in-progress: false
+
+jobs:
+  entrenar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TZ: America/Mexico_City
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          pip freeze | grep -iE '^(numpy|scipy|pandas|scikit-learn|matplotlib|threadpoolctl|joblib|python-dateutil|tzdata|pytz)==' > entorno.txt
+          cat entorno.txt
+
+      - name: Descargar datos de football-data
+        id: datos
+        run: python herramientas/descargar_datos.py --carpeta datos --proximos partidos/auto/proximos.csv
+
+      - name: Decidir si se reentrena
+        id: decidir
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "${{ steps.datos.outputs.cambio }}" = "true" ]; then
+            echo "entrenar=true" >> "$GITHUB_OUTPUT"
+            echo "Se reentrena (evento: ${{ github.event_name }}, datos nuevos: ${{ steps.datos.outputs.cambio }})."
+          else
+            echo "entrenar=false" >> "$GITHUB_OUTPUT"
+            echo "Sin resultados nuevos: se conserva el modelo vigente."
+          fi
+
+      - name: Entrenar
+        if: steps.decidir.outputs.entrenar == 'true'
+        run: |
+          python modelo_laliga.py entrenar --datos ${{ steps.datos.outputs.archivos }} --ajustes ajustes.csv \
+            2>&1 | tee salida_entrenamiento.txt
+
+      - name: Publicar resultados y guardar la versión
+        if: steps.decidir.outputs.entrenar == 'true'
+        run: |
+          VERSION="modelo-$(date +%Y%m%d-%H%M)"
+          python herramientas/publicar_resultados.py entrenamiento --version "$VERSION" --repo "${{ github.repository }}"
+          bash herramientas/git_subir.sh "Modelo $VERSION (datos hasta ${{ steps.datos.outputs.ultima_fecha }})" \
+            datos RESULTADOS.md historial
+          gh release create "$VERSION" \
+            modelo_laliga.pkl modelo_laliga.py informe_entrenamiento.json salida_entrenamiento.txt entorno.txt \
+            --title "$VERSION" --notes-file notas_release.md --target "$(git rev-parse HEAD)" --latest
+          cat RESULTADOS.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar datos actualizados
+        if: steps.decidir.outputs.entrenar != 'true'
+        run: bash herramientas/git_subir.sh "Datos actualizados" datos
+
+      - name: Predecir próximos partidos
+        if: >-
+          steps.datos.outputs.hay_proximos == 'true' &&
+          (github.event_name != 'workflow_dispatch' || inputs.predecir_proximos)
+        run: |
+          if ! gh release download --pattern modelo_laliga.pkl --pattern modelo_laliga.py --dir vigente --clobber; then
+            echo "Todavía no hay ninguna versión del modelo; se omiten las predicciones."
+            exit 0
+          fi
+          VERSION="$(gh release view --json tagName --jq .tagName)"
+          SALIDA="predicciones/$(date +%Y-%m-%d)_proximos"
+          rm -rf "$SALIDA"
+          python vigente/modelo_laliga.py predecir --modelo vigente/modelo_laliga.pkl --ajustes ajustes.csv \
+            --partidos partidos/auto/proximos.csv --salida "$SALIDA" 2>&1 | tee prediccion.txt
+          echo "$VERSION" > "$SALIDA/modelo.txt"
+          cp prediccion.txt "$SALIDA/salida.txt"
+          python herramientas/publicar_resultados.py indice --repo "${{ github.repository }}"
+          bash herramientas/git_subir.sh "Predicciones próximos partidos $(date +%Y-%m-%d) con $VERSION" \
+            predicciones partidos/auto
+          if [ -f "$SALIDA/resumen.md" ]; then
+            { echo "## Próximos partidos"; echo; tail -n +3 "$SALIDA/resumen.md"; } >> "$GITHUB_STEP_SUMMARY"
+          fi

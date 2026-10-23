@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# modelos y archivos temporales (los modelos se guardan en las versiones/releases de GitHub)
+*.pkl
+vigente/
+modelo_local/
+informe_entrenamiento.json
+salida_entrenamiento.txt
+prediccion*.txt
+notas_release.md
+entorno.txt
+.venv/
