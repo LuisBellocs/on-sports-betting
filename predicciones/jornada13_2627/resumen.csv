@@ -1,0 +1,11 @@
+partido,fecha,goles_esperados,p_over15,p_over25,p_over25_ic_bajo,p_over25_ic_alto,p_over35,p_local,p_empate,p_visitante,marcador_mas_probable,p_marcador,cuota_over25,cuota_under25,mercado_over25_sin_margen,ve_over25,ve_under25,alertas,grafica
+Ath Bilbao vs Espanol,2026-11-20,2.63,0.7391,0.4894,0.4261,0.5619,0.272,0.6329,0.2178,0.1493,1-0,0.1333,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Ath_Bilbao_vs_Espanol_2026_11_20.png
+Alaves vs La Coruna,2026-11-21,2.39,0.6867,0.4262,0.3606,0.4993,0.2208,0.4024,0.2798,0.3178,1-1,0.1298,,,,,,RECIEN_ASCENDIDO:La Coruna;SIN_CONTEXTO;SIN_CONSENSO,Alaves_vs_La_Coruna_2026_11_21.png
+Vallecano vs Valencia,2026-11-21,2.43,0.6979,0.438,0.3894,0.5044,0.229,0.516,0.2615,0.2226,1-0,0.1331,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Vallecano_vs_Valencia_2026_11_21.png
+Sevilla vs Betis,2026-11-21,2.43,0.6986,0.4386,0.398,0.5109,0.2291,0.3341,0.276,0.3899,1-1,0.1297,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Sevilla_vs_Betis_2026_11_21.png
+Real Madrid vs Celta,2026-11-21,3.22,0.8299,0.6217,0.5207,0.6873,0.4006,0.7488,0.157,0.0942,2-0,0.1223,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Real_Madrid_vs_Celta_2026_11_21.png
+Barcelona vs Villarreal,2026-11-22,4.03,0.8931,0.744,0.6904,0.8097,0.5587,0.6649,0.1688,0.1662,2-1,0.0811,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Barcelona_vs_Villarreal_2026_11_22.png
+Santander vs Sociedad,2026-11-22,3.56,0.8579,0.6756,0.5862,0.7871,0.4696,0.3499,0.2233,0.4268,1-1,0.0911,,,,,,RECIEN_ASCENDIDO:Santander;SIN_CONTEXTO;SIN_CONSENSO,Santander_vs_Sociedad_2026_11_22.png
+Osasuna vs Malaga,2026-11-22,2.91,0.7852,0.5546,0.4829,0.6298,0.3335,0.5452,0.2288,0.226,1-1,0.1059,,,,,,RECIEN_ASCENDIDO:Malaga;SIN_CONTEXTO;SIN_CONSENSO,Osasuna_vs_Malaga_2026_11_22.png
+Getafe vs Ath Madrid,2026-11-22,2.21,0.6472,0.3789,0.3296,0.4575,0.1827,0.2465,0.2833,0.4702,0-1,0.1455,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Getafe_vs_Ath_Madrid_2026_11_22.png
+Levante vs Elche,2026-11-23,3.33,0.84,0.64,0.549,0.7179,0.4236,0.4623,0.2286,0.309,1-1,0.099,,,,,,SIN_CONTEXTO;SIN_CONSENSO,Levante_vs_Elche_2026_11_23.png

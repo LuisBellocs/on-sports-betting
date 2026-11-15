@@ -1,0 +1,132 @@
+
+=== Ath Bilbao vs Espanol (2026-11-20) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.57  0.88  70.9% (62.7-77.7) 44.5% (35.1-53.5) 23.3% (16.2-31.2)  53/26/21
+RegresionPoisson    1.87  0.67  72.0% (65.1-80.6) 46.5% (38.4-58.4) 25.0% (18.6-36.0)  66/21/13
+GradientBoosting    2.12  0.53  74.1% (57.8-89.8) 49.3% (30.7-74.2) 27.4% (13.2-54.1)  75/18/8
+Bayesiano           1.93  0.98  78.6% (69.6-87.1) 55.5% (43.6-69.1) 33.1% (22.6-47.7)  60/22/19
+Ensamble            1.87  0.76  73.9% (68.4-78.9) 48.9% (42.6-56.2) 27.2% (22.3-34.3)  63/22/15
+Marcadores más probables (ensamble): 1-0 13.3%, 2-0 12.6%, 1-1 10.2%, 2-1 9.2%, 3-0 8.0%, 0-0 7.4%, 3-1 5.7%, 0-1 5.4%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Ath_Bilbao_vs_Espanol_2026_11_20.png
+
+=== Alaves vs La Coruna (2026-11-21) ===
+Alertas: RECIEN_ASCENDIDO:La Coruna;SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.10  0.95  61.2% (45.4-74.4) 33.5% (19.6-48.9) 15.1% ( 6.8-27.1)  38/32/30
+RegresionPoisson    1.48  1.14  73.6% (67.2-79.5) 48.6% (40.7-56.9) 26.7% (20.3-34.5)  45/26/29
+GradientBoosting    1.28  1.36  74.1% (60.4-83.7) 49.3% (33.4-63.6) 27.4% (15.1-41.7)  35/26/39
+Bayesiano           1.27  0.99  65.9% (50.7-78.3) 39.2% (24.3-55.1) 19.1% ( 9.3-32.7)  43/28/29
+Ensamble            1.28  1.11  68.7% (61.6-74.0) 42.6% (36.1-49.9) 22.1% (17.3-29.0)  40/28/32
+Marcadores más probables (ensamble): 1-1 13.0%, 1-0 11.7%, 0-1 10.0%, 0-0 9.6%, 2-1 8.2%, 2-0 7.5%, 1-2 7.1%, 0-2 5.6%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Alaves_vs_La_Coruna_2026_11_21.png
+
+=== Vallecano vs Valencia (2026-11-21) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.33  0.90  65.8% (59.2-73.8) 38.5% (31.6-48.2) 18.6% (13.8-26.4)  46/29/25
+RegresionPoisson    1.61  0.90  71.5% (66.4-77.8) 45.9% (39.9-54.3) 24.5% (19.7-32.0)  54/25/21
+GradientBoosting    1.52  0.76  66.6% (52.8-83.7) 40.0% (26.2-63.4) 19.8% (10.4-41.3)  56/26/19
+Bayesiano           1.64  1.07  75.2% (66.2-84.1) 50.8% (39.5-64.0) 28.7% (19.4-41.9)  51/25/25
+Ensamble            1.53  0.91  69.8% (65.3-74.7) 43.8% (38.9-50.4) 22.9% (19.3-29.1)  52/26/22
+Marcadores más probables (ensamble): 1-0 13.3%, 1-1 12.2%, 2-0 10.2%, 2-1 9.2%, 0-0 9.1%, 0-1 7.8%, 1-2 5.4%, 3-0 5.2%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Vallecano_vs_Valencia_2026_11_21.png
+
+=== Sevilla vs Betis (2026-11-21) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.22  1.36  73.4% (67.9-79.1) 47.6% (40.9-55.5) 25.9% (20.4-33.1)  33/28/40
+RegresionPoisson    1.09  1.40  71.0% (63.2-76.7) 45.3% (36.3-52.8) 24.0% (17.0-30.6)  29/27/44
+GradientBoosting    0.98  1.17  63.4% (46.3-77.7) 36.5% (20.8-54.3) 17.2% ( 7.4-32.0)  31/29/40
+Bayesiano           1.35  1.16  71.5% (63.1-81.3) 45.9% (36.2-59.5) 24.5% (17.0-37.2)  41/27/32
+Ensamble            1.16  1.27  69.9% (65.6-75.6) 43.9% (39.8-51.1) 22.9% (20.2-29.1)  33/28/39
+Marcadores más probables (ensamble): 1-1 13.0%, 0-1 11.1%, 1-0 10.0%, 0-0 9.0%, 1-2 8.2%, 2-1 7.4%, 0-2 7.2%, 2-0 5.9%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Sevilla_vs_Betis_2026_11_21.png
+
+=== Real Madrid vs Celta (2026-11-21) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          2.41  0.75  82.7% (75.9-88.6) 61.1% (51.1-71.3) 38.8% (29.0-50.4)  74/17/9
+RegresionPoisson    2.40  0.62  80.3% (72.8-88.9) 58.0% (47.5-72.5) 35.6% (25.8-51.9)  77/15/8
+GradientBoosting    2.93  0.65  87.2% (75.0-96.0) 69.3% (50.5-87.8) 47.9% (28.5-73.9)  83/11/5
+Bayesiano           2.18  0.94  81.9% (73.1-89.3) 60.4% (47.9-73.1) 38.1% (26.2-52.7)  66/19/15
+Ensamble            2.48  0.74  83.0% (75.5-86.5) 62.2% (52.1-68.7) 40.1% (30.8-48.7)  75/16/9
+Marcadores más probables (ensamble): 2-0 12.2%, 3-0 10.1%, 1-0 9.9%, 2-1 8.9%, 1-1 7.4%, 3-1 7.3%, 4-0 6.4%, 4-1 4.5%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Real_Madrid_vs_Celta_2026_11_21.png
+
+=== Barcelona vs Villarreal (2026-11-22) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          3.73  1.41  96.5% (94.3-98.0) 88.6% (83.2-92.8) 75.4% (66.6-82.8)  79/11/10
+RegresionPoisson    2.67  1.27  90.4% (84.4-95.0) 75.3% (64.5-85.1) 55.4% (42.5-69.5)  67/17/16
+GradientBoosting    1.72  1.16  78.2% (66.1-87.8) 54.9% (39.5-70.4) 32.6% (19.4-49.4)  50/24/26
+Bayesiano           2.86  1.30  92.0% (86.1-96.0) 78.5% (67.4-87.7) 59.9% (45.8-73.7)  70/16/15
+Ensamble            2.75  1.29  89.3% (85.8-92.9) 74.4% (69.0-81.0) 55.9% (49.4-64.2)  66/17/17
+Marcadores más probables (ensamble): 2-1 8.1%, 3-1 7.1%, 1-1 6.7%, 2-0 6.4%, 3-0 5.5%, 1-0 5.3%, 2-2 5.2%, 4-1 5.0%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Barcelona_vs_Villarreal_2026_11_22.png
+
+=== Santander vs Sociedad (2026-11-22) ===
+Alertas: RECIEN_ASCENDIDO:Santander;SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.98  2.53  94.2% (87.1-97.9) 82.8% (68.4-92.3) 66.1% (46.9-82.0)  30/19/50
+RegresionPoisson    1.51  1.65  82.4% (75.8-89.6) 61.2% (51.5-73.8) 38.9% (29.4-53.5)  35/24/41
+GradientBoosting    1.39  1.50  78.4% (60.2-94.0) 55.1% (33.1-83.0) 32.8% (14.9-66.3)  35/25/40
+Bayesiano           1.84  1.83  88.1% (80.5-95.5) 70.9% (58.3-86.4) 50.0% (35.9-71.6)  39/22/39
+Ensamble            1.68  1.88  85.8% (79.1-91.8) 67.6% (58.6-78.7) 47.0% (38.5-61.1)  35/22/43
+Marcadores más probables (ensamble): 1-1 9.1%, 1-2 8.1%, 2-1 7.3%, 2-2 6.7%, 0-1 5.6%, 1-0 5.2%, 1-3 5.0%, 0-2 5.0%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Santander_vs_Sociedad_2026_11_22.png
+
+=== Osasuna vs Malaga (2026-11-22) ===
+Alertas: RECIEN_ASCENDIDO:Malaga;SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.91  0.74  74.7% (60.9-86.1) 49.4% (33.3-66.8) 27.5% (15.0-45.0)  65/22/13
+RegresionPoisson    1.71  1.03  75.9% (68.6-83.8) 51.6% (42.3-63.5) 29.5% (21.6-41.3)  53/24/23
+GradientBoosting    1.84  1.51  84.7% (72.7-93.0) 64.9% (47.4-80.8) 42.9% (25.8-63.1)  46/23/32
+Bayesiano           1.83  1.10  79.0% (64.3-88.6) 56.0% (37.5-71.9) 33.6% (17.9-51.2)  55/23/23
+Ensamble            1.82  1.09  78.5% (73.3-83.0) 55.5% (48.3-63.0) 33.3% (26.8-41.9)  55/23/23
+Marcadores más probables (ensamble): 1-1 10.6%, 1-0 10.1%, 2-1 9.5%, 2-0 9.3%, 3-1 5.8%, 0-0 5.7%, 1-2 5.7%, 3-0 5.7%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Osasuna_vs_Malaga_2026_11_22.png
+
+=== Getafe vs Ath Madrid (2026-11-22) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          0.72  1.27  59.8% (53.9-67.4) 32.2% (26.6-40.3) 14.2% (10.7-20.0)  21/30/49
+RegresionPoisson    0.89  1.29  63.9% (58.5-71.0) 37.0% (31.4-45.2) 17.5% (13.7-23.9)  26/29/46
+GradientBoosting    0.83  1.48  67.2% (51.3-83.5) 40.8% (24.8-63.1) 20.4% ( 9.6-40.9)  21/26/53
+Bayesiano           1.07  1.27  68.0% (59.7-78.9) 41.6% (32.6-56.0) 21.0% (14.5-33.6)  31/28/41
+Ensamble            0.88  1.33  64.7% (60.0-71.1) 37.9% (33.0-45.8) 18.3% (14.8-24.9)  25/28/47
+Marcadores más probables (ensamble): 0-1 14.5%, 1-1 12.8%, 0-0 11.3%, 0-2 9.8%, 1-0 9.5%, 1-2 8.4%, 2-1 5.6%, 0-3 4.3%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Getafe_vs_Ath_Madrid_2026_11_22.png
+
+=== Levante vs Elche (2026-11-23) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.78  1.36  82.6% (73.5-89.7) 60.7% (47.7-73.3) 38.4% (26.0-52.9)  47/24/29
+RegresionPoisson    1.71  1.24  79.3% (72.4-84.7) 56.6% (47.0-65.0) 34.2% (25.4-43.0)  49/24/28
+GradientBoosting    2.08  1.90  90.7% (80.2-96.1) 75.9% (57.9-87.9) 56.2% (35.6-74.1)  43/21/36
+Bayesiano           1.81  1.44  83.5% (74.7-91.3) 63.0% (50.1-77.0) 40.8% (28.1-57.8)  46/23/31
+Ensamble            1.84  1.48  84.0% (78.1-88.4) 64.0% (54.9-71.8) 42.4% (32.6-51.6)  46/23/31
+Marcadores más probables (ensamble): 1-1 9.9%, 2-1 8.9%, 1-2 7.1%, 1-0 6.8%, 2-2 6.5%, 2-0 6.2%, 3-1 5.4%, 0-1 5.3%
+Suma de la matriz del ensamble: 1.000000
+Gráfica: predicciones/jornada13_2627/Levante_vs_Elche_2026_11_23.png
+
+Resumen: predicciones/jornada13_2627/resumen.md
