@@ -18,7 +18,8 @@ import pandas as pd
 COLS_HIST = ["version", "fecha_entrenamiento", "ultima_fecha_datos", "n_partidos", "metrica",
              "ll_marcador", "ll_over25", "brier_over25", "ll_1x2", "rps_1x2",
              "ll_over25_base", "ll_over25_cierre", "ll_1x2_cierre", "dif_over25_vs_cierre", "p_over25_vs_cierre",
-             "over25_esperado", "over25_real", "grupo_consenso", "alerta"]
+             "over25_esperado", "over25_real", "grupo_consenso", "alerta",
+             "backtest_apuestas", "backtest_ganancia", "backtest_yield", "backtest_clv", "backtest_p_ganancia"]
 
 NOMBRES = {"ll_marcador": "Log-loss marcador", "ll_over25": "Log-loss over 2.5", "brier_over25": "Brier over 2.5",
            "ll_1x2": "Log-loss 1X2", "rps_1x2": "RPS 1X2"}
@@ -68,7 +69,24 @@ def fila_historial(inf, version):
         "over25_real": inf.get("sesgo_over25", {}).get("real"),
         "grupo_consenso": " + ".join(inf.get("consenso", {}).get("grupo_consenso", [])),
         "alerta": inf.get("consenso", {}).get("alerta", ""),
+        "backtest_apuestas": (inf.get("backtest") or {}).get("apuestas"),
+        "backtest_ganancia": (inf.get("backtest") or {}).get("ganancia"),
+        "backtest_yield": (inf.get("backtest") or {}).get("rendimiento_sobre_apostado"),
+        "backtest_clv": (inf.get("backtest") or {}).get("clv_medio"),
+        "backtest_p_ganancia": (inf.get("backtest") or {}).get("p_terminar_en_ganancia"),
     }
+
+
+def texto_significancia(bt):
+    """Dice si la ganancia del backtest se distingue de la suerte (p-valor con apuesta fija)."""
+    fila = next((u for u in bt.get("por_peso_modelo", [])
+                 if abs(u.get("peso_modelo", -1) - (bt.get("peso_modelo") or -2)) < 1e-9 and "p_valor" in u), None)
+    if not fila:
+        return ""
+    pv = fila["p_valor"]
+    if pv < 0.05:
+        return f"La ganancia es estadísticamente significativa (p = {pv:.3f})."
+    return f"**Todavía no es estadísticamente significativa** (p = {pv:.2f}): con estos datos aún puede ser suerte."
 
 
 def enlace_version(repo, version):
@@ -108,6 +126,12 @@ def cmd_entrenamiento(a):
         d = ens["ll_over25"] - float(previa["ll_over25"])
         L.append(f"- **Contra la versión anterior ({previa['version']}):** log-loss over 2.5 "
                  f"{'mejoró' if d < 0 else 'empeoró' if d > 0 else 'igual'} ({d:+.4f}).")
+    bt = inf.get("backtest") or {}
+    if bt:
+        L.append(f"- **Estrategia de apuestas en el periodo de prueba:** {bt.get('apuestas', 0)} apuestas, ganancia "
+                 f"{bt.get('ganancia', 0):+,.1f} unidades sobre un bankroll de 1,000 (rendimiento "
+                 f"{pct(bt.get('rendimiento_sobre_apostado'))} sobre lo apostado, CLV {pct(bt.get('clv_medio'))}). "
+                 + texto_significancia(bt) + " [Ver el backtest](historial/backtest/backtest.md).")
     alerta = inf.get("consenso", {}).get("alerta", "")
     L.append(f"- **Consenso entre modelos:** {' + '.join(inf.get('consenso', {}).get('grupo_consenso', []))}"
              + (f" — alerta {alerta}" if alerta else "") + ".")
@@ -125,6 +149,18 @@ def cmd_entrenamiento(a):
         for r in inf["ensamble_vs_mercado"]:
             L.append(f"| {r['mercado']} | {NOMBRES.get(r['métrica'], r['métrica'])} | {r['n']} | {f4(r['ensamble'])} | "
                      f"{f4(r['mercado_valor'])} | {r['diferencia']:+.4f} | {fp(r['p_wilcoxon']).lstrip('= ')} | {veredicto(r)} |")
+    if bt:
+        L += ["", "## Estrategia de apuestas (backtest)", "",
+              f"Simulación jornada a jornada del portafolio en el periodo de prueba ({bt.get('periodo', '')}), "
+              f"con cuotas de apertura y peso del modelo {bt.get('peso_modelo', '')}.", "",
+              "| Apuestas | Aciertos | Ganancia | Rendimiento | Caída máxima | CLV medio | P(terminar en ganancia) |",
+              "|---|---|---|---|---|---|---|",
+              f"| {bt.get('apuestas', 0)} | {pct(bt.get('aciertos'))} | {bt.get('ganancia', 0):+,.1f} | "
+              f"{pct(bt.get('rendimiento_sobre_apostado'))} | {pct(bt.get('max_drawdown'))} | {pct(bt.get('clv_medio'))} | "
+              f"{pct(bt.get('p_terminar_en_ganancia'))} |", "",
+              "![Evolución del capital](historial/backtest/backtest.png)", "",
+              "Detalle, sensibilidad al peso del modelo y todas las apuestas: "
+              "[historial/backtest/backtest.md](historial/backtest/backtest.md)."]
     if inf.get("factor_calibrador_goles"):
         L += ["", "## Calibrador de goles", "",
               "Factor que multiplica los goles esperados de cada modelo (1 = sin corrección).", "",
@@ -150,7 +186,9 @@ def cmd_entrenamiento(a):
              f"{inf.get('ultima_fecha_datos', '')} ({inf.get('n_partidos', '')} partidos).", "",
              f"- Log-loss over 2.5 (ensamble): {f4(ens['ll_over25'])}",
              f"- Over 2.5 contra el cierre: {veredicto(vs_over)}",
-             f"- Log-loss marcador: {f4(ens['ll_marcador'])}", "",
+             f"- Log-loss marcador: {f4(ens['ll_marcador'])}",
+             (f"- Backtest de la estrategia: {bt.get('apuestas', 0)} apuestas, ganancia {bt.get('ganancia', 0):+,.1f} "
+              f"unidades, rendimiento {pct(bt.get('rendimiento_sobre_apostado'))}" if bt else "- Backtest: no disponible"), "",
              "Archivos: `modelo_laliga.pkl` (modelo), `modelo_laliga.py` (el código exacto de esta versión), "
              "`informe_entrenamiento.json`, `salida_entrenamiento.txt` y `entorno.txt` (versiones exactas "
              "de las librerías; instálalas con `pip install -r entorno.txt` si el modelo no carga)."]

@@ -22,8 +22,9 @@ SP1,25/10/2026,14:00,Celta,Getafe,,,,,
 | `Time` | no | Hora |
 | `Avg>2.5`, `Avg<2.5` | no | Cuotas decimales de over y under 2.5. Si están, se calcula el valor esperado |
 | `AHh`, `AvgAHH`, `AvgAHA` | no | Línea de hándicap asiático del local y sus cuotas |
+| `AvgH`, `AvgD`, `AvgA` | no | Cuotas 1X2: local, empate y visitante (también para el portafolio) |
 
-Las columnas de cuotas pueden quedar vacías. En ese caso, el modelo da las probabilidades pero no el valor esperado.
+Las columnas de cuotas pueden quedar vacías. En ese caso, el modelo da las probabilidades pero no el valor esperado, y ese mercado no entra al portafolio. Se aceptan también las columnas de Bet365 (`B365>2.5`, `B365H`…) o de mejor cuota (`Max>2.5`, `MaxH`…), y una columna libre como `FuenteCuotas` para anotar de dónde salen.
 
 ## Nombres de los equipos (2026-27)
 

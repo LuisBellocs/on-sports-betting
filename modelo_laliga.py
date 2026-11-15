@@ -124,6 +124,18 @@ class Config:
     shrink_calibracion_goles: float = 40.0   # goles "ficticios" que tiran el factor hacia 1
     # --- Peso temporal (mismo xi) también en la regresión y el gradient boosting
     decaimiento_en_ml: bool = True
+    # --- Portafolio de apuestas (se pueden cambiar en portafolio.json sin tocar el código)
+    bankroll: float = 1000.0          # capital en unidades (pesos, euros...)
+    kelly_fraccion: float = 0.25      # fracción del Kelly óptimo (1/4 reduce mucho el riesgo)
+    ev_minimo: float = 0.03           # valor esperado mínimo por apuesta (3 %)
+    exigir_intervalo: bool = True     # el VE debe ser positivo en el 95 % de los remuestreos
+    max_por_apuesta: float = 0.05     # máximo 5 % del bankroll en una apuesta
+    max_exposicion: float = 0.25      # máximo 25 % del bankroll en toda la jornada
+    cuota_min: float = 1.30
+    cuota_max: float = 6.00
+    escenarios: int = 20000           # simulaciones Monte Carlo
+    mercados: tuple = ("over_under", "1x2", "handicap")
+    peso_modelo: float = 0.3          # 1 = solo el modelo; 0.3 = mezcla 30 % modelo / 70 % mercado (conservador)
 
 
 CONFIG = Config()
@@ -1000,6 +1012,11 @@ class Sistema:
         self.consenso = prueba_consenso(perd, mats, cfg)
         w = self.consenso["pesos_ensamble"]
         ens = [sum(w[n] * mats[n][i] for n in w) for i in range(len(test))]
+        # para el backtest de la estrategia: matrices fuera de muestra + cuotas y resultados reales
+        cols_bt = ["Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG"] + sorted(
+            {c for m in (COLS_CUOTAS_APERTURA, COLS_CUOTAS_CIERRE) for cs in m.values() for c in cs} & set(test.columns))
+        self.backtest = {"partidos": test[cols_bt].reset_index(drop=True),
+                         "matrices": np.array(ens, dtype=np.float32)}
         det_ens = [metricas_partido(m, r["FTHG"], r["FTAG"]) for m, (_, r) in zip(ens, test.iterrows())]
 
         # modelo base: promedio de la liga en entrenamiento
@@ -1422,6 +1439,573 @@ def nombre_archivo(texto):
 
 
 # ---------------------------------------------------------------------------
+# PORTAFOLIO DE APUESTAS
+# ---------------------------------------------------------------------------
+# Idea: el valor esperado de un portafolio es la suma de los valores esperados de cada
+# apuesta, así que combinar apuestas no crea ventaja; lo que sí hace es repartir el riesgo.
+# Por eso (1) solo entran apuestas con ventaja según el modelo, (2) los montos se eligen con
+# Kelly fraccional optimizado en conjunto (respeta la correlación entre apuestas del mismo
+# partido) y (3) el riesgo se mide por Monte Carlo con las matrices de marcadores.
+
+def cargar_config_portafolio(cfg: Config, ruta: str = "portafolio.json") -> Config:
+    """Sobrescribe los parámetros del portafolio con portafolio.json, si existe."""
+    p = Path(ruta)
+    if p.exists():
+        try:
+            valores = json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            print(f"Aviso: {ruta} no es un JSON válido ({e}); se usan los valores por defecto.")
+            return cfg
+        for k, v in valores.items():
+            if hasattr(cfg, k):
+                setattr(cfg, k, tuple(v) if isinstance(getattr(cfg, k), tuple) else type(getattr(cfg, k))(v))
+            else:
+                print(f"Aviso: parámetro desconocido en {ruta}: {k}")
+    return cfg
+
+
+@dataclass(eq=False)
+class Apuesta:
+    partido: str
+    fecha: str
+    k: int                    # índice del partido dentro de la jornada
+    mercado: str
+    seleccion: str
+    cuota: float
+    pago: np.ndarray          # ganancia neta por unidad apostada en cada marcador (local, visitante)
+    p_ganar: float = np.nan   # probabilidad de ganar la apuesta (sin contar devoluciones)
+    ve: float = np.nan        # valor esperado por unidad, según el modelo
+    ve_bajo: float = np.nan   # percentil 5 del VE en los remuestreos
+    ve_alto: float = np.nan
+    ve_mercado: float = np.nan  # VE si las probabilidades correctas fueran las del mercado (sin margen)
+    ve_usado: float = np.nan    # VE con el que se decide: mezcla de modelo y mercado (peso_modelo)
+    cuota_cierre: float = np.nan
+    motivo: str = ""          # por qué se descartó (vacío = seleccionada)
+    fraccion: float = 0.0     # fracción del bankroll asignada
+    monto: float = 0.0
+
+
+def _rejilla(n):
+    return np.meshgrid(np.arange(n + 1), np.arange(n + 1), indexing="ij")
+
+
+def pago_total(n, linea, cuota, over=True):
+    x, y = _rejilla(n)
+    gana = (x + y > linea) if over else (x + y < linea)
+    return np.where(gana, cuota - 1.0, -1.0)
+
+
+def pago_1x2(n, seleccion, cuota):
+    x, y = _rejilla(n)
+    gana = {"1": x > y, "X": x == y, "2": x < y}[seleccion]
+    return np.where(gana, cuota - 1.0, -1.0)
+
+
+def pago_handicap(n, linea_local, cuota, lado):
+    """Hándicap asiático; las líneas de cuarto (±0.25, ±0.75...) se dividen en dos medias apuestas."""
+    x, y = _rejilla(n)
+    dif = (x - y).astype(float)
+    signo, linea = (1, linea_local) if lado == "local" else (-1, -linea_local)
+    partes = [linea] if (linea * 4) % 2 == 0 else [linea - 0.25, linea + 0.25]
+    total = np.zeros_like(dif)
+    for p in partes:
+        d = signo * dif + p
+        total += np.where(d > 0, cuota - 1.0, np.where(d == 0, 0.0, -1.0)) / len(partes)
+    return total
+
+
+def _devig(cuotas):
+    inv = np.array([1 / c for c in cuotas])
+    return inv / inv.sum()
+
+
+def mercado_valido(cuotas, margen_max):
+    """Descarta cuotas imposibles (errores de captura): la suma de probabilidades implícitas
+    debe estar entre 1 (sin margen) y 1 + margen_max. Ej.: 5.12 / 1.78 en un hándicap suma 0.76."""
+    s = sum(1 / c for c in cuotas)
+    return 1.0 <= s <= 1.0 + margen_max
+
+
+def candidatos_partido(k, partido, fecha, cuotas, n, mercados, cierre=None) -> list[Apuesta]:
+    """Todas las apuestas posibles de un partido con las cuotas disponibles.
+    cuotas: dict con over, under, ah, ah_local, ah_visit, c1, cx, c2 (None si no hay)."""
+    c = cuotas or {}
+    z = dict(cierre or {})
+    for par in (("over", "under"), ("ah_local", "ah_visit"), ("c1", "cx", "c2")):
+        if all(z.get(k) for k in par) and not mercado_valido([z[k] for k in par], 0.20):
+            for k in par:
+                z[k] = None
+    out = []
+    if "over_under" in mercados and c.get("over") and c.get("under") and mercado_valido([c["over"], c["under"]], 0.15):
+        pm = _devig([c["over"], c["under"]])
+        for sel, cu, over, pmk, cc in (("Over 2.5", c["over"], True, pm[0], z.get("over")),
+                                        ("Under 2.5", c["under"], False, pm[1], z.get("under"))):
+            out.append(Apuesta(partido, fecha, k, "Over/Under 2.5", sel, cu, pago_total(n, 2.5, cu, over),
+                               ve_mercado=pmk * cu - 1, cuota_cierre=cc if cc else np.nan))
+    if ("1x2" in mercados and c.get("c1") and c.get("cx") and c.get("c2")
+            and mercado_valido([c["c1"], c["cx"], c["c2"]], 0.20)):
+        pm = _devig([c["c1"], c["cx"], c["c2"]])
+        for sel, nombre, cu, pmk, cc in (("1", "Local", c["c1"], pm[0], z.get("c1")),
+                                         ("X", "Empate", c["cx"], pm[1], z.get("cx")),
+                                         ("2", "Visitante", c["c2"], pm[2], z.get("c2"))):
+            out.append(Apuesta(partido, fecha, k, "1X2", nombre, cu, pago_1x2(n, sel, cu),
+                               ve_mercado=pmk * cu - 1, cuota_cierre=cc if cc else np.nan))
+    if ("handicap" in mercados and c.get("ah") is not None and not pd.isna(c.get("ah"))
+            and c.get("ah_local") and c.get("ah_visit") and mercado_valido([c["ah_local"], c["ah_visit"]], 0.15)):
+        linea = float(c["ah"])
+        pm = _devig([c["ah_local"], c["ah_visit"]])
+        mismo_cierre = z.get("ah") is not None and not pd.isna(z.get("ah")) and float(z["ah"]) == linea
+        local, visit = partido.split(" vs ")
+        for lado, nombre, cu, pmk, cc in (("local", f"{local} {linea:+g}", c["ah_local"], pm[0], z.get("ah_local")),
+                                          ("visitante", f"{visit} {-linea:+g}", c["ah_visit"], pm[1], z.get("ah_visit"))):
+            out.append(Apuesta(partido, fecha, k, "Hándicap asiático", nombre, cu,
+                               pago_handicap(n, linea, cu, lado), ve_mercado=pmk * cu - 1,
+                               cuota_cierre=cc if (cc and mismo_cierre) else np.nan))
+    return out
+
+
+def evaluar(apuestas, matrices, muestras=None, peso_modelo=1.0):
+    """VE exacto con la matriz del ensamble, su intervalo con los remuestreos y el VE usado
+    para decidir (mezcla con el mercado; el VE es lineal en la probabilidad, así que mezclar
+    probabilidades equivale a mezclar VE)."""
+    w = float(peso_modelo)
+    for a in apuestas:
+        m = matrices[a.k]
+        a.ve = float((m * a.pago).sum())
+        a.p_ganar = float(m[a.pago > 0].sum())
+        if muestras is not None and len(muestras[a.k]) >= 5:
+            ves = np.array([(mb * a.pago).sum() for mb in muestras[a.k]])
+            a.ve_bajo, a.ve_alto = float(np.percentile(ves, 5)), float(np.percentile(ves, 95))
+        vm = 0.0 if np.isnan(a.ve_mercado) else a.ve_mercado
+        a.ve_usado = w * a.ve + (1 - w) * vm
+        if not np.isnan(a.ve_bajo):
+            a.ve_bajo, a.ve_alto = w * a.ve_bajo + (1 - w) * vm, w * a.ve_alto + (1 - w) * vm
+    return apuestas
+
+
+def seleccionar(apuestas, cfg: Config, usar_intervalo=True):
+    """Aplica los filtros y deja como máximo una apuesta por partido y mercado (la de mayor VE)."""
+    for a in apuestas:
+        if not (cfg.cuota_min <= a.cuota <= cfg.cuota_max):
+            a.motivo = f"cuota fuera de [{cfg.cuota_min}, {cfg.cuota_max}]"
+        elif a.ve_usado < cfg.ev_minimo:
+            a.motivo = f"VE menor a {cfg.ev_minimo:.0%}"
+        elif usar_intervalo and cfg.exigir_intervalo and not np.isnan(a.ve_bajo) and a.ve_bajo <= 0:
+            a.motivo = "VE no es positivo en todo el intervalo del modelo"
+        else:
+            a.motivo = ""
+    mejores = {}
+    for a in apuestas:
+        if a.motivo:
+            continue
+        clave = (a.k, a.mercado)
+        if clave not in mejores or a.ve_usado > mejores[clave].ve_usado:
+            mejores[clave] = a
+    for a in apuestas:
+        if not a.motivo and mejores[(a.k, a.mercado)] is not a:
+            a.motivo = "otra selección del mismo mercado tiene más VE"
+    return [a for a in apuestas if not a.motivo]
+
+
+def escenarios_pnl(apuestas, matrices, n_esc, rng):
+    """Ganancia por unidad de cada apuesta en n_esc escenarios. Los marcadores de cada partido
+    se simulan una sola vez, así que las apuestas del mismo partido quedan correlacionadas."""
+    R = np.zeros((n_esc, len(apuestas)))
+    for k in sorted({a.k for a in apuestas}):
+        m = matrices[k].ravel().astype(float)
+        idx = rng.choice(m.size, size=n_esc, p=m / m.sum())
+        for j, a in enumerate(apuestas):
+            if a.k == k:
+                R[:, j] = a.pago.ravel()[idx]
+    return R
+
+
+def kelly_conjunto(R, cfg: Config, escala=None):
+    """Fracciones que maximizan el crecimiento esperado del capital, E[log(1 + R·f)],
+    optimizadas a la vez; después se aplican la fracción de Kelly y los topes."""
+    n = R.shape[1]
+    if n == 0:
+        return np.zeros(0)
+
+    def obj(f):
+        w = 1.0 + R @ f
+        if np.any(w <= 1e-9):
+            return 1e6, np.zeros_like(f)
+        return -np.mean(np.log(w)), -(R / w[:, None]).mean(axis=0)
+
+    x0 = np.full(n, min(0.01, 0.9 / n))
+    res = optimize.minimize(obj, x0, jac=True, method="SLSQP", bounds=[(0.0, 0.99)] * n,
+                            constraints=[{"type": "ineq", "fun": lambda f: 0.99 - f.sum()}])
+    f = np.clip(res.x, 0, None) * cfg.kelly_fraccion
+    if escala is not None:  # Kelly ≈ proporcional a la ventaja: se reduce con la ventaja mezclada
+        f = f * np.clip(np.asarray(escala, float), 0, 1)
+    f = np.minimum(f, cfg.max_por_apuesta)
+    if f.sum() > cfg.max_exposicion:
+        f *= cfg.max_exposicion / f.sum()
+    f[f < 1e-4] = 0.0
+    return f
+
+
+def riesgo(pnl, bankroll):
+    """Resumen de la distribución de ganancias simulada."""
+    p5 = np.percentile(pnl, 5)
+    cola = pnl[pnl <= p5]
+    return {"ganancia_esperada": float(pnl.mean()), "desviacion": float(pnl.std()),
+            "p_ganancia": float((pnl > 0).mean()), "p_perder_10pct": float((pnl < -0.10 * bankroll).mean()),
+            "var95": float(-p5), "cvar95": float(-cola.mean()) if len(cola) else 0.0,
+            "p5": float(p5), "p50": float(np.percentile(pnl, 50)), "p95": float(np.percentile(pnl, 95)),
+            "mejor": float(pnl.max()), "peor": float(pnl.min())}
+
+
+def construir_portafolio(resultados, cuotas_lista, cfg: Config, bankroll=None, semilla=0):
+    """resultados: salidas de Sistema.predecir; cuotas_lista: cuotas de cada partido, mismo orden."""
+    bankroll = bankroll or cfg.bankroll
+    rng = np.random.default_rng(semilla)
+    matrices = [r["modelos"]["Ensamble"]["matriz"] for r in resultados]
+    muestras = [r["modelos"]["Ensamble"]["muestras"] for r in resultados]
+    n = matrices[0].shape[0] - 1 if matrices else cfg.max_goles
+    todas = []
+    for k, (r, c) in enumerate(zip(resultados, cuotas_lista)):
+        todas += candidatos_partido(k, r["partido"], r["fecha"], c, n, cfg.mercados)
+    evaluar(todas, matrices, muestras, cfg.peso_modelo)
+    elegidas = seleccionar(todas, cfg)
+    out = {"bankroll": bankroll, "candidatas": todas, "elegidas": elegidas, "riesgo": None, "pnl": None}
+    if elegidas:
+        R = escenarios_pnl(elegidas, matrices, cfg.escenarios, rng)
+        f = kelly_conjunto(R, cfg, escala=[a.ve_usado / a.ve if a.ve > 0 else 0 for a in elegidas])
+        for a, fi in zip(elegidas, f):
+            a.fraccion, a.monto = float(fi), float(round(fi * bankroll, 2))
+        elegidas = [a for a in elegidas if a.monto > 0]
+        out["elegidas"] = elegidas
+        if elegidas:
+            R = escenarios_pnl(elegidas, matrices, cfg.escenarios, np.random.default_rng(semilla + 1))
+            montos = np.array([a.monto for a in elegidas])
+            pnl = R @ montos
+            out["pnl"] = pnl
+            out["riesgo"] = riesgo(pnl, bankroll)
+            out["riesgo"]["ganancia_si_mercado"] = float(sum(a.monto * a.ve_mercado for a in elegidas))
+            out["riesgo"]["ganancia_mezcla"] = float(sum(a.monto * a.ve_usado for a in elegidas))
+            out["riesgo"]["total_apostado"] = float(montos.sum())
+    return out
+
+
+def guardar_portafolio(port, carpeta, cfg: Config):
+    """portafolio.md (legible en GitHub), portafolio.csv y portafolio.png (distribución simulada)."""
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    B = port["bankroll"]
+    filas = [{"partido": a.partido, "fecha": a.fecha, "mercado": a.mercado, "seleccion": a.seleccion,
+              "cuota": a.cuota, "p_ganar": round(a.p_ganar, 4), "ve": round(a.ve, 4),
+              "ve_bajo": round(a.ve_bajo, 4) if not np.isnan(a.ve_bajo) else None,
+              "ve_alto": round(a.ve_alto, 4) if not np.isnan(a.ve_alto) else None,
+              "ve_si_mercado": round(a.ve_mercado, 4), "ve_usado": round(a.ve_usado, 4),
+              "fraccion_bankroll": round(a.fraccion, 4),
+              "monto": a.monto, "estado": "SELECCIONADA" if a in port["elegidas"] else a.motivo}
+             for a in port["candidatas"]]
+    pd.DataFrame(filas).to_csv(carpeta / "portafolio.csv", index=False)
+
+    pct = lambda x: "" if x is None or (isinstance(x, float) and np.isnan(x)) else f"{x * 100:+.1f}%"
+    L = ["# Portafolio de la jornada", "",
+         f"Bankroll: **{B:,.0f}** · Kelly: **{cfg.kelly_fraccion:g}** · VE mínimo: **{cfg.ev_minimo:.0%}** · "
+         f"Máximo por apuesta: **{cfg.max_por_apuesta:.0%}** · Máximo en la jornada: **{cfg.max_exposicion:.0%}** · "
+         f"Intervalo exigido: **{'sí' if cfg.exigir_intervalo else 'no'}** · "
+         f"Peso del modelo frente al mercado: **{cfg.peso_modelo:g}**", ""]
+    if port["elegidas"]:
+        r = port["riesgo"]
+        L += ["## Apuestas", "",
+              "| Partido | Fecha | Mercado | Selección | Cuota | P(ganar) | VE usado (IC 90 %) | VE modelo | VE mercado | % bankroll | Monto |",
+              "|---|---|---|---|---|---|---|---|---|---|---|"]
+        for a in sorted(port["elegidas"], key=lambda a: (a.fecha, a.partido)):
+            ic = f" ({pct(a.ve_bajo)} a {pct(a.ve_alto)})" if not np.isnan(a.ve_bajo) else ""
+            L.append(f"| {a.partido} | {a.fecha} | {a.mercado} | **{a.seleccion}** | {a.cuota:.2f} | "
+                     f"{a.p_ganar * 100:.1f}% | {pct(a.ve_usado)}{ic} | {pct(a.ve)} | {pct(a.ve_mercado)} | "
+                     f"{a.fraccion * 100:.2f}% | {a.monto:,.2f} |")
+        L += ["", "## Riesgo del portafolio (simulación Monte Carlo)", "",
+              f"Simulados {cfg.escenarios:,} escenarios con las matrices de marcadores del modelo; las apuestas "
+              "de un mismo partido se simulan juntas, así que su correlación está incluida.", "",
+              "| Medida | Valor |", "|---|---|",
+              f"| Total apostado | {r['total_apostado']:,.2f} ({r['total_apostado'] / B:.1%} del bankroll) |",
+              f"| Ganancia esperada si el modelo tiene razón | {r['ganancia_esperada']:+,.2f} |",
+              f"| Ganancia esperada con la mezcla modelo/mercado | {r['ganancia_mezcla']:+,.2f} |",
+              f"| **Ganancia esperada si el mercado tiene razón** | **{r['ganancia_si_mercado']:+,.2f}** |",
+              f"| Probabilidad de terminar la jornada en ganancia (si el modelo tiene razón) | {r['p_ganancia']:.1%} |",
+              f"| Probabilidad de perder más del 10 % del bankroll | {r['p_perder_10pct']:.1%} |",
+              f"| Resultado mediano | {r['p50']:+,.2f} |",
+              f"| Rango del 90 % | {r['p5']:+,.2f} a {r['p95']:+,.2f} |",
+              f"| VaR 95 % (pérdida que solo se supera 1 de cada 20 jornadas) | {r['var95']:,.2f} |",
+              f"| CVaR 95 % (pérdida promedio en esa peor 5 %) | {r['cvar95']:,.2f} |",
+              f"| Peor caso simulado | {r['peor']:+,.2f} |", "",
+              "La fila *si el mercado tiene razón* usa las probabilidades implícitas de las cuotas sin margen. "
+              "Si es negativa, la ganancia depende por completo de que el modelo sepa más que el mercado; "
+              "revisa en `historial/backtest/backtest.md` si eso se ha cumplido en el pasado.", "",
+              "![Distribución de la ganancia](portafolio.png)"]
+    else:
+        L += ["## Ninguna apuesta cumple los criterios esta jornada", "",
+              "No apostar también es una decisión del portafolio: ninguna apuesta tiene suficiente ventaja "
+              "según el modelo con las cuotas disponibles."]
+    descartes = sorted([a for a in port["candidatas"] if a not in port["elegidas"]], key=lambda a: -a.ve_usado)[:8]
+    if descartes:
+        L += ["", "## Mejores apuestas descartadas", "",
+              "| Partido | Selección | Cuota | VE | Motivo |", "|---|---|---|---|---|"]
+        for a in descartes:
+            L.append(f"| {a.partido} | {a.seleccion} | {a.cuota:.2f} | {pct(a.ve_usado)} | {a.motivo or 'monto menor al mínimo'} |")
+    L += ["", "Para cambiar el bankroll o los criterios, edita `portafolio.json` en la raíz del repositorio."]
+    (carpeta / "portafolio.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+
+    if port["pnl"] is not None:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        tinta, tinta2, rejilla = "#0b0b0b", "#52514e", "#e4e3df"
+        r = port["riesgo"]
+        fig, ax = plt.subplots(figsize=(9, 4.2), facecolor="#fcfcfb")
+        ax.set_facecolor("#fcfcfb")
+        pnl = port["pnl"]
+        bins = np.histogram_bin_edges(pnl, bins=60)
+        ax.hist(pnl[pnl < 0], bins=bins, color="#e34948", alpha=0.85, label="Pérdida")
+        ax.hist(pnl[pnl >= 0], bins=bins, color="#1baf7a", alpha=0.85, label="Ganancia")
+        ax.axvline(r["ganancia_esperada"], color=tinta, lw=1.5, ls="--",
+                   label=f"Esperado (modelo): {r['ganancia_esperada']:+,.1f}")
+        ax.axvline(r["ganancia_si_mercado"], color=tinta2, lw=1.5, ls=":",
+                   label=f"Esperado (mercado): {r['ganancia_si_mercado']:+,.1f}")
+        ax.axvline(-r["var95"], color="#e34948", lw=1.2, label=f"VaR 95 %: {-r['var95']:+,.1f}")
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+        ax.spines["left"].set_color(rejilla); ax.spines["bottom"].set_color(rejilla)
+        ax.tick_params(colors=tinta2)
+        ax.grid(axis="y", color=rejilla, lw=0.8)
+        ax.set_xlabel("Ganancia de la jornada (unidades)", color=tinta2)
+        ax.set_ylabel("Escenarios", color=tinta2)
+        ax.set_title(f"Probabilidad de ganancia si el modelo tiene razón: {r['p_ganancia']:.1%}",
+                     loc="left", color=tinta, fontsize=12)
+        ax.legend(frameon=False, fontsize=8.5)
+        fig.savefig(carpeta / "portafolio.png", dpi=120, bbox_inches="tight")
+        plt.close(fig)
+    print(f"Portafolio: {carpeta / 'portafolio.md'} ({len(port['elegidas'])} apuestas)")
+
+
+# ---------------------------------------------------------------------------
+# BACKTEST DE LA ESTRATEGIA
+# ---------------------------------------------------------------------------
+
+COLS_CUOTAS_APERTURA = {"over": ["Avg>2.5", "B365>2.5"], "under": ["Avg<2.5", "B365<2.5"],
+                        "c1": ["AvgH", "B365H"], "cx": ["AvgD", "B365D"], "c2": ["AvgA", "B365A"],
+                        "ah": ["AHh"], "ah_local": ["AvgAHH", "B365AHH"], "ah_visit": ["AvgAHA", "B365AHA"]}
+COLS_CUOTAS_CIERRE = {"over": ["AvgC>2.5", "B365C>2.5"], "under": ["AvgC<2.5", "B365C<2.5"],
+                      "c1": ["AvgCH", "B365CH"], "cx": ["AvgCD", "B365CD"], "c2": ["AvgCA", "B365CA"],
+                      "ah": ["AHCh"], "ah_local": ["AvgCAHH", "B365CAHH"], "ah_visit": ["AvgCAHA", "B365CAHA"]}
+
+
+def cuotas_de_fila(r, mapa):
+    out = {}
+    for k, cols in mapa.items():
+        if k == "ah":
+            v = next((pd.to_numeric(r.get(c), errors="coerce") for c in cols if c in r.index), np.nan)
+            out[k] = None if pd.isna(v) else float(v)
+        else:
+            out[k] = primera_valida(r, *cols)
+    return out
+
+
+def ejecutar_backtest(sist, carpeta="historial/backtest", cfg: Config | None = None):
+    """Simula la estrategia en el periodo de prueba, jornada a jornada, con las matrices que el
+    modelo produjo SIN conocer esos partidos (walk-forward) y las cuotas de APERTURA (las que hay
+    antes del partido). Mide también el CLV: si la cuota tomada fue mejor que la de cierre."""
+    cfg = cfg or sist.cfg
+    bt = getattr(sist, "backtest", None)
+    if bt is None:
+        print("Este modelo no guardó datos para el backtest; vuelve a entrenarlo con esta versión.")
+        return None
+    t, mats = bt["partidos"], bt["matrices"]
+    n = mats.shape[1] - 1
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    dias = (t["Date"] - t["Date"].min()).dt.days.values
+    bloques = dias // max(cfg.dias_bloque, 1)
+    capital, curva, registro = cfg.bankroll, [], []
+    todas_candidatas = []
+    for b in np.unique(bloques):
+        idx = np.where(bloques == b)[0]
+        cand = []
+        for k_local, i in enumerate(idx):
+            r = t.iloc[i]
+            partido = f"{r['HomeTeam']} vs {r['AwayTeam']}"
+            cand += candidatos_partido(k_local, partido, str(r["Date"].date()), cuotas_de_fila(r, COLS_CUOTAS_APERTURA),
+                                       n, cfg.mercados, cierre=cuotas_de_fila(r, COLS_CUOTAS_CIERRE))
+        matrices = [mats[i].astype(float) for i in idx]
+        evaluar(cand, matrices, peso_modelo=cfg.peso_modelo)
+        for a in cand:
+            r = t.iloc[idx[a.k]]
+            gl, gv = min(int(r["FTHG"]), n), min(int(r["FTAG"]), n)
+            todas_candidatas.append((a, float(a.pago[gl, gv])))
+        elegidas = seleccionar(cand, cfg, usar_intervalo=False)
+        ganancia = 0.0
+        if elegidas:
+            R = escenarios_pnl(elegidas, matrices, min(cfg.escenarios, 5000), np.random.default_rng(int(b)))
+            f = kelly_conjunto(R, cfg, escala=[a.ve_usado / a.ve if a.ve > 0 else 0 for a in elegidas])
+            for a, fi in zip(elegidas, f):
+                if fi <= 0:
+                    continue
+                r = t.iloc[idx[a.k]]
+                gl, gv = min(int(r["FTHG"]), n), min(int(r["FTAG"]), n)
+                monto = fi * capital
+                res = monto * a.pago[gl, gv]
+                ganancia += res
+                registro.append({"fecha": a.fecha, "partido": a.partido, "mercado": a.mercado,
+                                 "seleccion": a.seleccion, "cuota": a.cuota, "cuota_cierre": a.cuota_cierre,
+                                 "clv": a.cuota / a.cuota_cierre - 1 if not np.isnan(a.cuota_cierre) else np.nan,
+                                 "ve_modelo": a.ve, "fraccion": fi, "monto": monto,
+                                 "marcador": f"{int(r['FTHG'])}-{int(r['FTAG'])}", "resultado": res,
+                                 "capital_antes": capital})
+        capital += ganancia
+        curva.append({"fecha": t.iloc[idx[0]]["Date"].date(), "capital": capital, "ganancia": ganancia})
+    reg = pd.DataFrame(registro)
+    curva = pd.DataFrame(curva)
+    reg.to_csv(carpeta / "backtest_apuestas.csv", index=False)
+
+    # Estrategia de apuesta fija (1 unidad) para varios umbrales de VE: ¿hay algún umbral rentable?
+    umbrales = []
+    for u in (0.0, 0.02, 0.05, 0.10, 0.15):
+        rets = np.array([pnl for a, pnl in todas_candidatas
+                         if a.ve >= u and cfg.cuota_min <= a.cuota <= cfg.cuota_max])
+        if len(rets) < 5:
+            umbrales.append({"ve_minimo": u, "apuestas": int(len(rets))})
+            continue
+        se = rets.std(ddof=1) / np.sqrt(len(rets))
+        umbrales.append({"ve_minimo": u, "apuestas": int(len(rets)), "aciertos": float((rets > 0).mean()),
+                         "rendimiento": float(rets.mean()), "ganancia_unidades": float(rets.sum()),
+                         "p_valor": float(stats.norm.sf(rets.mean() / se)) if se > 0 else np.nan})
+    tab_u = pd.DataFrame(umbrales)
+
+    # Sensibilidad al peso del modelo (apuesta fija de 1 unidad, VE usado >= ev_minimo)
+    por_peso = []
+    for w in (1.0, 0.5, 0.3, 0.2, 0.1):
+        rets = np.array([pnl for a, pnl in todas_candidatas
+                         if cfg.cuota_min <= a.cuota <= cfg.cuota_max and not np.isnan(a.ve_mercado)
+                         and w * a.ve + (1 - w) * a.ve_mercado >= cfg.ev_minimo])
+        fila = {"peso_modelo": w, "apuestas": int(len(rets))}
+        if len(rets) >= 5:
+            se = rets.std(ddof=1) / np.sqrt(len(rets))
+            fila.update({"aciertos": float((rets > 0).mean()), "rendimiento": float(rets.mean()),
+                         "ganancia_unidades": float(rets.sum()),
+                         "p_valor": float(stats.norm.sf(rets.mean() / se)) if se > 0 else np.nan})
+        por_peso.append(fila)
+
+    # Probabilidad de terminar en ganancia: remuestreo de jornadas (bootstrap de rendimientos)
+    rng = np.random.default_rng(cfg.semilla)
+    rend = (curva["ganancia"] / (curva["capital"] - curva["ganancia"])).values if len(curva) else np.array([])
+    p_ganar = np.nan
+    if len(rend) > 3 and np.any(rend != 0):
+        sims = np.prod(1 + rng.choice(rend, size=(5000, len(rend)), replace=True), axis=1)
+        p_ganar = float((sims > 1).mean())
+    pico = curva["capital"].cummax() if len(curva) else pd.Series(dtype=float)
+    max_dd = float(((pico - curva["capital"]) / pico).max()) if len(curva) else 0.0
+    resumen = {
+        "periodo": f"{t['Date'].min().date()} a {t['Date'].max().date()}", "jornadas": int(len(curva)),
+        "partidos": int(len(t)), "apuestas": int(len(reg)),
+        "aciertos": float((reg["resultado"] > 0).mean()) if len(reg) else np.nan,
+        "total_apostado": float(reg["monto"].sum()) if len(reg) else 0.0,
+        "ganancia": float(capital - cfg.bankroll), "capital_final": float(capital),
+        "rendimiento_sobre_apostado": float(reg["resultado"].sum() / reg["monto"].sum()) if len(reg) else np.nan,
+        "max_drawdown": max_dd, "p_terminar_en_ganancia": p_ganar,
+        "clv_medio": float(reg["clv"].mean()) if len(reg) and reg["clv"].notna().any() else np.nan,
+        "pct_mejor_que_cierre": float((reg["clv"] > 0).mean()) if len(reg) and reg["clv"].notna().any() else np.nan,
+        "por_umbral": tab_u.to_dict(orient="records"),
+        "por_peso_modelo": por_peso, "peso_modelo": cfg.peso_modelo,
+        "por_mercado": (reg.groupby("mercado").agg(apuestas=("resultado", "size"), apostado=("monto", "sum"),
+                                                   ganancia=("resultado", "sum")).reset_index()
+                        .to_dict(orient="records") if len(reg) else []),
+    }
+
+    # Informe
+    pct = lambda x: "" if x is None or pd.isna(x) else f"{x * 100:+.1f}%"
+    pct0 = lambda x: "" if x is None or pd.isna(x) else f"{x * 100:.1f}%"
+    L = ["# Backtest de la estrategia de apuestas", "",
+         f"Periodo: **{resumen['periodo']}** ({resumen['jornadas']} jornadas, {resumen['partidos']} partidos). "
+         "Cada jornada se predijo con el modelo reentrenado solo con partidos anteriores, y se apostó con las "
+         "**cuotas de apertura** promedio del mercado (las disponibles días antes del partido).", "",
+         f"Reglas: bankroll inicial {cfg.bankroll:,.0f}, Kelly {cfg.kelly_fraccion:g}, VE mínimo {cfg.ev_minimo:.0%}, "
+         f"peso del modelo {cfg.peso_modelo:g}, "
+         f"máximo {cfg.max_por_apuesta:.0%} por apuesta y {cfg.max_exposicion:.0%} por jornada, cuotas entre "
+         f"{cfg.cuota_min} y {cfg.cuota_max}. El filtro del intervalo no se aplica aquí (no hay remuestreos "
+         "guardados del periodo de prueba), así que el backtest es algo más permisivo que el portafolio real.", "",
+         "## Resultado con Kelly fraccional", "",
+         "| Medida | Valor |", "|---|---|",
+         f"| Apuestas | {resumen['apuestas']} |",
+         f"| Aciertos | {pct0(resumen['aciertos'])} |",
+         f"| Total apostado | {resumen['total_apostado']:,.2f} |",
+         f"| **Ganancia** | **{resumen['ganancia']:+,.2f}** (capital final {resumen['capital_final']:,.2f}) |",
+         f"| Rendimiento sobre lo apostado (yield) | {pct(resumen['rendimiento_sobre_apostado'])} |",
+         f"| Caída máxima desde un pico (drawdown) | {pct0(resumen['max_drawdown'])} |",
+         f"| Probabilidad de terminar en ganancia (remuestreo de jornadas) | {pct0(resumen['p_terminar_en_ganancia'])} |",
+         f"| CLV medio (cuota tomada contra cuota de cierre) | {pct(resumen['clv_medio'])} |",
+         f"| Apuestas con mejor cuota que el cierre | {pct0(resumen['pct_mejor_que_cierre'])} |", "",
+         "El **CLV** es la mejor señal de habilidad a largo plazo: si las cuotas que tomas suelen ser mejores que las "
+         "de cierre, el mercado terminó moviéndose hacia tu predicción.", "",
+         "![Evolución del capital](backtest.png)", "",
+         "## ¿Existe algún umbral de VE rentable? (apuesta fija de 1 unidad)", "",
+         "| VE mínimo | Apuestas | Aciertos | Rendimiento por apuesta | Ganancia (unidades) | p-valor (rendimiento > 0) |",
+         "|---|---|---|---|---|---|"]
+    for u in umbrales:
+        if "rendimiento" not in u:
+            L.append(f"| {u['ve_minimo']:.0%} | {u['apuestas']} | | | | |")
+        else:
+            L.append(f"| {u['ve_minimo']:.0%} | {u['apuestas']} | {pct0(u['aciertos'])} | {pct(u['rendimiento'])} | "
+                     f"{u['ganancia_unidades']:+.1f} | {u['p_valor']:.3f} |")
+    L += ["", "Un p-valor menor a 0.05 indicaría que la ganancia probablemente no es suerte. Si ningún umbral lo "
+          "logra, la estrategia todavía no ha demostrado ventaja sobre el mercado.", "",
+          f"## ¿Cuánto confiar en el modelo frente al mercado? (apuesta fija, VE usado ≥ {cfg.ev_minimo:.0%})", "",
+          "VE usado = peso × VE del modelo + (1 − peso) × VE según el mercado. Un peso bajo solo apuesta cuando el "
+          "modelo discrepa del mercado de forma marcada.", "",
+          "| Peso del modelo | Apuestas | Aciertos | Rendimiento por apuesta | Ganancia (unidades) | p-valor |",
+          "|---|---|---|---|---|---|"]
+    for u in por_peso:
+        actual = " (actual)" if abs(u["peso_modelo"] - cfg.peso_modelo) < 1e-9 else ""
+        if "rendimiento" not in u:
+            L.append(f"| {u['peso_modelo']:g}{actual} | {u['apuestas']} | | | | |")
+        else:
+            L.append(f"| {u['peso_modelo']:g}{actual} | {u['apuestas']} | {pct0(u['aciertos'])} | {pct(u['rendimiento'])} | "
+                     f"{u['ganancia_unidades']:+.1f} | {u['p_valor']:.3f} |")
+    L += ["", "Cuidado: elegir el peso mirando esta tabla es ajustar al pasado; trátala como orientación, "
+          "no como prueba de ventaja."]
+    if resumen["por_mercado"]:
+        L += ["", "## Por mercado", "", "| Mercado | Apuestas | Apostado | Ganancia |", "|---|---|---|---|"]
+        for m_ in resumen["por_mercado"]:
+            L.append(f"| {m_['mercado']} | {m_['apuestas']} | {m_['apostado']:,.2f} | {m_['ganancia']:+,.2f} |")
+    L += ["", "Limitación: los pesos del ensamble se eligieron con este mismo periodo de prueba; como son casi iguales "
+          "entre modelos, el efecto es pequeño, pero el resultado real puede ser algo peor."]
+    (carpeta / "backtest.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+
+    if len(curva):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        tinta, tinta2, rejilla = "#0b0b0b", "#52514e", "#e4e3df"
+        fig, ax = plt.subplots(figsize=(9, 4), facecolor="#fcfcfb")
+        ax.set_facecolor("#fcfcfb")
+        fechas = pd.to_datetime(curva["fecha"])
+        ax.plot(fechas, curva["capital"], color="#2a78d6", lw=2, drawstyle="steps-post",
+                label="Capital con Kelly fraccional (después de cada jornada)")
+        ax.axhline(cfg.bankroll, color=tinta2, lw=1, ls="--", label=f"Capital inicial ({cfg.bankroll:,.0f})")
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+        ax.spines["left"].set_color(rejilla); ax.spines["bottom"].set_color(rejilla)
+        ax.tick_params(colors=tinta2)
+        ax.grid(axis="y", color=rejilla, lw=0.8)
+        ax.set_ylabel("Capital (unidades)", color=tinta2)
+        ax.set_title(f"Backtest: {resumen['ganancia']:+,.1f} unidades en {resumen['jornadas']} jornadas",
+                     loc="left", color=tinta, fontsize=12)
+        ax.legend(frameon=False, fontsize=8.5)
+        fig.autofmt_xdate()
+        fig.savefig(carpeta / "backtest.png", dpi=120, bbox_inches="tight")
+        plt.close(fig)
+    print(f"\nBacktest ({resumen['periodo']}): {resumen['apuestas']} apuestas, ganancia {resumen['ganancia']:+,.2f}, "
+          f"yield {pct(resumen['rendimiento_sobre_apostado'])}, drawdown máx. {pct0(resumen['max_drawdown'])}, "
+          f"CLV medio {pct(resumen['clv_medio'])} -> {carpeta / 'backtest.md'}")
+    return resumen
+
+
+# ---------------------------------------------------------------------------
 # LÍNEA DE COMANDOS
 # ---------------------------------------------------------------------------
 
@@ -1429,7 +2013,7 @@ def nombre_archivo(texto):
 def cmd_entrenar(a):
     df = cargar_datos(a.datos)
     aj = cargar_ajustes(a.ajustes)
-    cfg = CONFIG
+    cfg = cargar_config_portafolio(CONFIG)
     if a.bootstrap:
         cfg.n_bootstrap = a.bootstrap
     metricas = ["goles", "xg"] if a.metrica == "ambas" else [a.metrica]
@@ -1447,6 +2031,11 @@ def cmd_entrenar(a):
     s.rutas_datos, s.ruta_ajustes = a.datos, a.ajustes
     with open(a.modelo, "wb") as f:
         pickle.dump(s, f)
+    try:
+        resumen_bt = ejecutar_backtest(s, carpeta=a.salida_backtest, cfg=cfg)
+    except Exception as e:  # el backtest no debe impedir guardar el modelo
+        print(f"Aviso: el backtest falló ({type(e).__name__}: {e})")
+        resumen_bt = None
     informe = {"metrica": elegido,
                "fecha_entrenamiento": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"),
                "ultima_fecha_datos": str(s.ultima_fecha.date()),
@@ -1457,7 +2046,8 @@ def cmd_entrenar(a):
                "calibracion": s.calibracion.astype(str).to_dict(orient="records"),
                "sesgo_over25": s.sesgo_over, "factor_calibrador_goles": s.factor_cal,
                "evolucion_factor_por_bloque": s.historial_factores,
-               "ensamble_vs_mercado": s.vs_mercado.to_dict(orient="records")}
+               "ensamble_vs_mercado": s.vs_mercado.to_dict(orient="records"),
+               "backtest": resumen_bt}
     Path("informe_entrenamiento.json").write_text(json.dumps(informe, indent=2, ensure_ascii=False, default=str),
                                                   encoding="utf-8")
     print(f"\nModelo guardado en {a.modelo}; informe en informe_entrenamiento.json")
@@ -1554,6 +2144,7 @@ def primera_valida(r, *cols):
 
 def cmd_predecir(a):
     sist = cargar_sistema(a.modelo)
+    sist.cfg = cargar_config_portafolio(sist.cfg)
     if a.bootstrap:
         sist.cfg.n_bootstrap = a.bootstrap
     ruta_aj = a.ajustes or getattr(sist, "ruta_ajustes", None)
@@ -1566,7 +2157,7 @@ def cmd_predecir(a):
         if "Div" in fx.columns:
             fx = fx[fx["Div"] == "SP1"]
         fx["Date"] = pd.to_datetime(fx["Date"], dayfirst=True)
-        filas = []
+        filas, resultados, cuotas_lista = [], [], []
         for _, r in fx.iterrows():
             # la línea de hándicap puede ser 0 o negativa: no se filtra como cuota
             ah = pd.to_numeric(r.get("AHh"), errors="coerce") if r.get("AHh") is not None else np.nan
@@ -1574,17 +2165,36 @@ def cmd_predecir(a):
                       "under": primera_valida(r, "Avg<2.5", "B365<2.5", "Max<2.5"),
                       "ah": None if pd.isna(ah) else float(ah),
                       "ah_local": primera_valida(r, "AvgAHH", "B365AHH"),
-                      "ah_visit": primera_valida(r, "AvgAHA", "B365AHA")}
+                      "ah_visit": primera_valida(r, "AvgAHA", "B365AHA"),
+                      "c1": primera_valida(r, "AvgH", "B365H", "MaxH"),
+                      "cx": primera_valida(r, "AvgD", "B365D", "MaxD"),
+                      "c2": primera_valida(r, "AvgA", "B365A", "MaxA")}
             res = sist.predecir(r["HomeTeam"], r["AwayTeam"], r["Date"],
                                 _ajustes_partido(sist, ruta_aj, r["Date"], r["HomeTeam"], r["AwayTeam"]))
             filas.append(_salida(sist, res, a, cuotas))
+            resultados.append(res)
+            cuotas_lista.append(cuotas)
         guardar_resumen(filas, a.salida)
+        if not a.sin_portafolio and resultados:
+            port = construir_portafolio(resultados, cuotas_lista, sist.cfg, bankroll=a.bankroll)
+            guardar_portafolio(port, a.salida, sist.cfg)
+            ruta_res = Path(a.salida) / "resumen.md"
+            if ruta_res.exists():
+                with open(ruta_res, "a", encoding="utf-8") as f:
+                    f.write(f"\n**[Portafolio de apuestas de esta jornada](portafolio.md)**: "
+                            f"{len(port['elegidas'])} apuestas seleccionadas.\n")
     else:
         cuotas = {"over": a.cuota_over, "under": a.cuota_under, "ah": a.ah,
                   "ah_local": a.cuota_ah_local, "ah_visit": a.cuota_ah_visit}
         fecha = a.fecha or str(pd.Timestamp.today().date())
         res = sist.predecir(a.local, a.visitante, fecha, _ajustes_partido(sist, ruta_aj, fecha, a.local, a.visitante))
         _salida(sist, res, a, cuotas)
+
+
+def cmd_backtest(a):
+    sist = cargar_sistema(a.modelo)
+    cfg = cargar_config_portafolio(sist.cfg)
+    ejecutar_backtest(sist, carpeta=a.salida, cfg=cfg)
 
 
 def cmd_vivo(a):
@@ -1636,12 +2246,19 @@ def main(argv=None):
     e = sub.add_parser("entrenar", parents=[comun])
     e.add_argument("--datos", nargs="+", required=True)
     e.add_argument("--metrica", choices=["goles", "xg", "ambas"], default="ambas")
+    e.add_argument("--salida-backtest", default="historial/backtest")
     e.set_defaults(f=cmd_entrenar)
 
     r = sub.add_parser("recalibrar", parents=[comun])
     r.add_argument("--datos", nargs="+", required=True)
     r.add_argument("--metrica", choices=["goles", "xg", "ambas"], default=None)
+    r.add_argument("--salida-backtest", default="historial/backtest")
     r.set_defaults(f=cmd_recalibrar)
+
+    b = sub.add_parser("backtest", parents=[comun],
+                       help="simula la estrategia de apuestas en el periodo de prueba del modelo guardado")
+    b.add_argument("--salida", default="historial/backtest")
+    b.set_defaults(f=cmd_backtest)
 
     for nombre, fn in (("predecir", cmd_predecir), ("vivo", cmd_vivo)):
         q = sub.add_parser(nombre, parents=[comun])
@@ -1652,6 +2269,8 @@ def main(argv=None):
             q.add_argument("--partidos", help="CSV con HomeTeam, AwayTeam, Date (p. ej. fixtures.csv)")
             q.add_argument("--ah", type=float, help="línea de hándicap asiático del local, p. ej. -0.75")
             q.add_argument("--cuota-ah-local", type=float); q.add_argument("--cuota-ah-visit", type=float)
+            q.add_argument("--bankroll", type=float, default=None, help="capital para el portafolio")
+            q.add_argument("--sin-portafolio", action="store_true", help="no construir el portafolio")
         else:
             q.add_argument("--minuto", type=int, required=True)
             q.add_argument("--marcador", default="0-0")

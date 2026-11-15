@@ -72,16 +72,46 @@ python -m pip install -r requirements.txt
 
 **Predecir con una versión anterior en GitHub:** ve a **Actions** → **Predecir partidos** → **Run workflow**, e indica el archivo y la versión.
 
+## Portafolio de apuestas
+
+Cada vez que se predice un archivo de partidos, se genera también `portafolio.md` en la misma carpeta de `predicciones/`:
+
+1. **Selección:** solo entran apuestas con valor esperado (VE) de al menos 3 %. El VE de cada una es exacto: se calcula con la matriz de marcadores del modelo para over/under 2.5, 1X2 y hándicap asiático.
+2. **Prudencia:** el VE con que se decide mezcla al modelo con el mercado (`peso_modelo`, 0.3 por defecto). En el backtest, confiar solo en el modelo perdió dinero, porque justo donde más discrepa del mercado suele equivocarse. Además, el VE debe ser positivo en todo el intervalo de confianza del modelo.
+3. **Montos:** Kelly fraccional (¼) optimizado para todas las apuestas a la vez. Así se respeta la correlación entre apuestas del mismo partido; por ejemplo, over 2.5 y victoria local suelen ir juntos. Ninguna apuesta pasa del 5 % del bankroll, y la jornada completa no pasa del 25 %.
+4. **Riesgo:** una simulación Monte Carlo de 20,000 escenarios da la probabilidad de ganar, el VaR y el CVaR al 95 %, y la ganancia esperada si el mercado tuviera razón.
+
+Si ninguna apuesta cumple los criterios, el portafolio lo dice: no apostar también es una decisión.
+
+**Backtest:** cada entrenamiento simula la estrategia en el periodo de prueba, jornada a jornada, con las cuotas de apertura reales, y deja el resultado en `historial/backtest/backtest.md`. Incluye ganancia, caída máxima, CLV (si las cuotas tomadas fueron mejores que las de cierre), significancia estadística y sensibilidad al peso del modelo. Se ignoran las cuotas imposibles, que a veces vienen con errores en los datos.
+
+**Configuración:** edita `portafolio.json` y súbelo con `.\subir_cambios.ps1`. Aplica desde la siguiente predicción:
+
+| Parámetro | Por defecto | Qué hace |
+|---|---|---|
+| `bankroll` | 1000 | Capital, en las unidades que quieras |
+| `kelly_fraccion` | 0.25 | Fracción del Kelly óptimo |
+| `ev_minimo` | 0.03 | VE mínimo para apostar |
+| `peso_modelo` | 0.3 | 1 = solo el modelo; 0 = solo el mercado |
+| `exigir_intervalo` | true | El VE debe ser positivo en todo el intervalo del modelo |
+| `max_por_apuesta`, `max_exposicion` | 0.05, 0.25 | Topes por apuesta y por jornada |
+| `cuota_min`, `cuota_max` | 1.3, 6.0 | Rango de cuotas aceptadas |
+| `mercados` | los tres | `over_under`, `1x2`, `handicap` |
+
+En tu computadora: `python modelo_laliga.py backtest` repite el backtest con el modelo guardado y tu `portafolio.json`.
+
 ## Estructura
 
 | Ruta | Contenido |
 |---|---|
 | `modelo_laliga.py` | El modelo (entrenar, predecir, en vivo, recalibrar) |
 | `ajustes.csv` | Contexto por partido: lesiones, partidos extra, rotaciones, árbitro… |
+| `portafolio.json` | Bankroll y criterios del portafolio de apuestas |
 | `datos/` | CSV de football-data (se actualizan solos) |
 | `partidos/` | Archivos de partidos a predecir (los de `partidos/auto/` los genera GitHub) |
 | `predicciones/` | Resultados: `resumen.md`, gráficas y matrices de marcadores |
 | `historial/metricas.csv` | Métricas de todas las versiones |
+| `historial/backtest/` | Backtest de la estrategia de apuestas (se actualiza en cada entrenamiento) |
 | `herramientas/` | Scripts que usan los workflows |
 | `.github/workflows/` | Las automatizaciones (en la carpeta original vienen en `flujos_github/`; `configurar_github.ps1` las mueve) |
 
