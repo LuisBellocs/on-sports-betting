@@ -1,0 +1,11 @@
+fecha,local,visitante,carpeta,modelo,p_over25,prediccion,goles_reales,acierto
+2026-11-20,Ath Bilbao,Espanol,jornada13_2627,modelo-20261109-2156,0.4894,under,,
+2026-11-21,Alaves,La Coruna,jornada13_2627,modelo-20261109-2156,0.4262,under,,
+2026-11-21,Real Madrid,Celta,jornada13_2627,modelo-20261109-2156,0.6217,over,,
+2026-11-21,Sevilla,Betis,jornada13_2627,modelo-20261109-2156,0.4386,under,,
+2026-11-21,Vallecano,Valencia,jornada13_2627,modelo-20261109-2156,0.438,under,,
+2026-11-22,Barcelona,Villarreal,jornada13_2627,modelo-20261109-2156,0.744,over,,
+2026-11-22,Getafe,Ath Madrid,jornada13_2627,modelo-20261109-2156,0.3789,under,,
+2026-11-22,Osasuna,Malaga,jornada13_2627,modelo-20261109-2156,0.5546,over,,
+2026-11-22,Santander,Sociedad,jornada13_2627,modelo-20261109-2156,0.6756,over,,
+2026-11-23,Levante,Elche,jornada13_2627,modelo-20261109-2156,0.64,over,,

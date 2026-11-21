@@ -97,9 +97,13 @@ jobs:
             echo "::endgroup::"
             echo "$VERSION" > "$SALIDA/modelo.txt"
             cp "prediccion_$NOMBRE.txt" "$SALIDA/salida.txt"
+                        python herramientas/graficar_aciertos.py registrar --carpeta "$SALIDA" \
+              || echo "::warning::No se pudieron registrar las predicciones para la gráfica de aciertos."
             if [ -f "$SALIDA/resumen.md" ]; then
               { echo "## $NOMBRE"; echo; tail -n +3 "$SALIDA/resumen.md"; echo; } >> "$GITHUB_STEP_SUMMARY"
             fi
           done
+
+          python herramientas/graficar_aciertos.py actualizar || echo "::warning::No se pudo actualizar la gráfica de aciertos."
           python herramientas/publicar_resultados.py indice --repo "${{ github.repository }}"
-          bash herramientas/git_subir.sh "Predicciones de ${{ steps.archivos.outputs.lista }} con $VERSION" predicciones
+          bash herramientas/git_subir.sh "Predicciones de ${{ steps.archivos.outputs.lista }} con $VERSION" predicciones historial
