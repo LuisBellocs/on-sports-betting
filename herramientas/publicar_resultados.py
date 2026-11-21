@@ -172,6 +172,12 @@ def cmd_entrenamiento(a):
               "| Tramo | Partidos | Probabilidad media | Frecuencia real |", "|---|---|---|---|"]
         for r in inf["calibracion"]:
             L.append(f"| {r['tramo']} | {r['n']} | {pct(float(r['p_media']))} | {pct(float(r['frecuencia_real']))} |")
+    if Path("historial/aciertos_over25.png").exists():
+        L += ["", "## Aciertos del over/under 2.5 en predicciones reales", "",
+              "![Aciertos acumulados del over/under 2.5](historial/aciertos_over25.png)", "",
+              "Cada partido predicho suma un punto si el modelo acertó: over cuando dijo más de 50 % y hubo 3 o más "
+              "goles, o under en cualquier otro caso. Los resultados salen de `datos/`. "
+              "Detalle partido a partido: [historial/aciertos_over25.csv](historial/aciertos_over25.csv)."]
     L += ["", "## Historial de versiones", "",
           "| Versión | Entrenado | Datos hasta | Partidos | Log-loss marcador | Log-loss over 2.5 | Cierre over 2.5 | Log-loss 1X2 | Over 2.5 esperado / real |",
           "|---|---|---|---|---|---|---|---|---|"]
