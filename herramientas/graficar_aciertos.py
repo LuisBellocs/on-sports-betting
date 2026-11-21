@@ -111,7 +111,7 @@ def cmd_registrar(a) -> None:
             if reg.loc[mismo, "goles_reales"].notna().any():
                 continue  # ya resuelto: la predicción queda fija
             reg = reg[~mismo]
-            reg = pd.concat([reg.astype(object), pd.DataFrame([fila]).astype(object)], ignore_index=True)
+        reg = pd.concat([reg.astype(object), pd.DataFrame([fila]).astype(object)], ignore_index=True)
         nuevos += 1
 
     guardar_registro(reg, ruta)
