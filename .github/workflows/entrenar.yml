@@ -62,6 +62,9 @@ jobs:
         id: datos
         run: python herramientas/descargar_datos.py --carpeta datos --proximos partidos/auto/proximos.csv
 
+      - name: Actualizar aciertos del over 2.5 con los resultados nuevos
+        run: python herramientas/graficar_aciertos.py actualizar || echo "::warning::No se pudo actualizar la gráfica de aciertos."
+      
       - name: Decidir si se reentrena
         id: decidir
         run: |
@@ -117,3 +120,13 @@ jobs:
           if [ -f "$SALIDA/resumen.md" ]; then
             { echo "## Próximos partidos"; echo; tail -n +3 "$SALIDA/resumen.md"; } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Registrar predicciones y guardar la gráfica de aciertos
+        run: |
+          CARPETA="predicciones/$(date +%Y-%m-%d)_proximos"
+          if [ -f "$CARPETA/resumen.csv" ]; then
+            python herramientas/graficar_aciertos.py registrar --carpeta "$CARPETA" \
+              || echo "::warning::No se pudieron registrar las predicciones para la gráfica de aciertos."
+          fi
+          python herramientas/graficar_aciertos.py actualizar || echo "::warning::No se pudo actualizar la gráfica de aciertos."
+          bash herramientas/git_subir.sh "Aciertos del over 2.5 $(date +%Y-%m-%d)" historial
