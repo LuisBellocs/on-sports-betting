@@ -1,0 +1,163 @@
+
+=== Levante vs Santander (2026-11-27) ===
+Alertas: RECIEN_ASCENDIDO:Santander;SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          2.82  1.61  93.8% (84.8-97.6) 81.9% (64.6-91.6) 64.6% (42.6-80.6)  63/17/20
+RegresionPoisson    2.21  1.26  86.1% (78.9-92.2) 67.3% (55.9-79.0) 45.7% (33.6-60.5)  59/20/21
+GradientBoosting    2.30  1.35  87.8% (72.9-96.4) 70.4% (47.6-88.6) 49.3% (26.0-75.2)  59/20/22
+Bayesiano           2.29  1.66  90.5% (81.4-96.2) 75.5% (59.6-88.2) 55.7% (37.3-74.6)  52/20/28
+Ensamble            2.40  1.47  89.5% (81.6-92.1) 73.8% (60.4-79.5) 53.8% (38.6-62.2)  58/19/23
+Marcadores más probables (ensamble): 2-1 8.7%, 1-1 7.4%, 3-1 6.9%, 2-2 6.3%, 2-0 6.1%, 1-2 5.3%, 1-0 5.1%, 3-2 5.1%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 73.8% | mercado sin margen 67.3% | cuota 1.39 (justa 1.36) | VE +2.6% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 26.2% | mercado sin margen 32.7% | cuota 2.86 (justa 3.81) | VE -25.0% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local -0.50: VE local +13.8% | VE visitante -25.0%
+Gráfica: predicciones/2026-11-27_proximos/Levante_vs_Santander_2026_11_27.png
+
+=== Betis vs Vallecano (2026-11-28) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.81  0.92  76.2% (69.5-83.7) 51.6% (42.9-62.7) 29.4% (22.0-40.5)  58/24/18
+RegresionPoisson    1.54  1.40  79.2% (73.8-83.8) 56.4% (48.9-63.5) 34.0% (27.1-41.3)  41/25/35
+GradientBoosting    1.52  1.95  86.1% (76.2-96.0) 67.4% (52.2-87.7) 45.8% (30.0-73.8)  30/22/48
+Bayesiano           1.87  1.46  84.4% (77.3-91.2) 64.6% (53.6-77.0) 42.5% (31.3-57.7)  47/22/30
+Ensamble            1.69  1.43  81.5% (75.5-85.8) 60.0% (51.2-67.1) 37.9% (29.5-46.4)  44/23/33
+Marcadores más probables (ensamble): 1-1 10.4%, 2-1 8.7%, 1-0 7.7%, 1-2 7.3%, 2-0 6.7%, 0-1 6.1%, 2-2 6.0%, 3-1 4.9%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 60.0% | mercado sin margen 60.8% | cuota 1.54 (justa 1.67) | VE -7.7% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 40.0% | mercado sin margen 39.2% | cuota 2.39 (justa 2.50) | VE -4.3% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local -1.00: VE local -34.1% | VE visitante +21.8%
+Gráfica: predicciones/2026-11-27_proximos/Betis_vs_Vallecano_2026_11_28.png
+
+=== Malaga vs Ath Bilbao (2026-11-28) ===
+Alertas: RECIEN_ASCENDIDO:Malaga;SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          0.74  1.56  67.2% (48.1-82.9) 40.2% (21.7-61.4) 19.9% ( 7.9-39.1)  17/26/56
+RegresionPoisson    1.03  1.48  71.4% (64.8-78.2) 45.8% (38.0-55.0) 24.4% (18.3-32.6)  26/26/47
+GradientBoosting    0.74  1.44  64.0% (52.3-81.8) 37.2% (25.7-60.3) 17.6% (10.1-37.9)  19/27/54
+Bayesiano           1.13  1.63  76.1% (64.6-87.9) 51.9% (37.7-70.6) 29.7% (18.1-49.6)  26/25/49
+Ensamble            0.91  1.52  69.7% (61.5-77.4) 43.8% (35.4-54.1) 22.9% (17.1-32.3)  22/26/52
+Marcadores más probables (ensamble): 0-1 13.5%, 1-1 12.0%, 0-2 10.3%, 0-0 9.1%, 1-2 9.1%, 1-0 7.7%, 2-1 5.4%, 0-3 5.2%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 43.8% | mercado sin margen 51.9% | cuota 1.80 (justa 2.28) | VE -21.2% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 56.2% | mercado sin margen 48.1% | cuota 1.94 (justa 1.78) | VE +9.1% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local +0.75: VE local +1.9% | VE visitante -13.4%
+Gráfica: predicciones/2026-11-27_proximos/Malaga_vs_Ath_Bilbao_2026_11_28.png
+
+=== Elche vs Ath Madrid (2026-11-28) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.11  1.72  77.9% (71.1-86.1) 53.8% (44.8-66.7) 31.5% (23.5-44.9)  24/25/51
+RegresionPoisson    1.04  1.62  74.5% (69.0-79.3) 49.8% (42.8-56.5) 27.8% (21.9-34.1)  24/25/51
+GradientBoosting    1.17  2.23  85.2% (76.8-94.3) 65.9% (52.9-83.5) 44.0% (30.7-67.1)  19/20/61
+Bayesiano           1.25  1.59  77.5% (69.6-87.1) 54.0% (43.6-69.2) 31.7% (22.5-47.8)  30/25/45
+Ensamble            1.14  1.79  78.8% (76.3-83.7) 55.8% (52.2-64.0) 33.7% (30.1-43.2)  24/23/52
+Marcadores más probables (ensamble): 1-1 11.0%, 1-2 9.5%, 0-1 9.4%, 0-2 8.4%, 2-1 6.2%, 1-0 6.2%, 1-3 5.7%, 0-0 5.6%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 55.8% | mercado sin margen 61.1% | cuota 1.53 (justa 1.79) | VE -14.6% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 44.2% | mercado sin margen 38.9% | cuota 2.40 (justa 2.26) | VE +6.0% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local +1.25: VE local +18.2% | VE visitante -31.6%
+Gráfica: predicciones/2026-11-27_proximos/Elche_vs_Ath_Madrid_2026_11_28.png
+
+=== Real Madrid vs Alaves (2026-11-28) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          2.43  0.66  81.6% (72.8-88.0) 59.6% (47.1-70.3) 37.2% (25.5-49.1)  76/16/8
+RegresionPoisson    2.91  0.80  88.5% (83.0-92.6) 71.6% (62.2-79.8) 50.8% (40.0-61.7)  80/12/7
+GradientBoosting    2.75  1.23  90.6% (80.5-96.3) 75.8% (58.3-88.4) 56.1% (36.0-74.9)  69/16/15
+Bayesiano           2.11  0.96  81.0% (72.2-88.5) 59.1% (46.8-71.6) 36.7% (25.3-50.8)  64/20/16
+Ensamble            2.55  0.91  85.4% (80.7-88.5) 66.5% (59.1-72.6) 45.2% (37.4-53.5)  72/16/11
+Marcadores más probables (ensamble): 2-0 10.3%, 2-1 8.9%, 3-0 8.7%, 1-0 8.2%, 3-1 7.5%, 1-1 7.3%, 4-0 5.6%, 4-1 4.8%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 66.5% | mercado sin margen 72.3% | cuota 1.30 (justa 1.50) | VE -13.5% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 33.5% | mercado sin margen 27.7% | cuota 3.40 (justa 2.99) | VE +13.8% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local -2.50: VE local -40.9% | VE visitante +23.8%
+Gráfica: predicciones/2026-11-27_proximos/Real_Madrid_vs_Alaves_2026_11_28.png
+
+=== Valencia vs Osasuna (2026-11-29) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.40  1.04  70.5% (62.4-78.6) 44.0% (34.8-54.9) 22.9% (16.0-32.5)  45/28/27
+RegresionPoisson    1.07  1.09  63.6% (57.4-70.5) 36.7% (30.4-44.6) 17.3% (13.0-23.4)  35/29/36
+GradientBoosting    1.02  0.95  58.5% (38.9-76.7) 31.5% (15.5-52.8) 13.7% ( 4.9-30.6)  36/31/33
+Bayesiano           1.39  1.15  71.9% (63.5-81.6) 46.4% (36.6-60.0) 24.9% (17.2-37.6)  42/27/31
+Ensamble            1.22  1.05  66.1% (60.5-71.5) 39.7% (34.4-46.2) 19.7% (16.1-25.1)  40/29/32
+Marcadores más probables (ensamble): 1-1 13.2%, 1-0 12.3%, 0-1 10.9%, 0-0 10.7%, 2-1 7.9%, 2-0 7.5%, 1-2 6.9%, 0-2 5.7%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 39.7% | mercado sin margen 42.3% | cuota 2.21 (justa 2.52) | VE -12.4% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 60.3% | mercado sin margen 57.7% | cuota 1.62 (justa 1.66) | VE -2.2% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local -0.25: VE local -15.5% | VE visitante +5.0%
+Gráfica: predicciones/2026-11-27_proximos/Valencia_vs_Osasuna_2026_11_29.png
+
+=== La Coruna vs Barcelona (2026-11-29) ===
+Alertas: RECIEN_ASCENDIDO:La Coruna;SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          0.96  2.25  83.4% (73.6-91.7) 62.2% (48.0-77.4) 40.0% (26.3-58.3)  15/19/66
+RegresionPoisson    1.10  2.46  87.0% (79.9-91.9) 68.9% (57.4-78.3) 47.5% (35.0-59.5)  15/18/67
+GradientBoosting    1.46  2.56  91.0% (77.6-96.6) 76.6% (54.0-89.2) 57.2% (31.7-76.3)  21/18/61
+Bayesiano           0.98  1.76  75.9% (63.1-87.4) 51.6% (36.1-69.7) 29.5% (16.9-48.4)  21/23/56
+Ensamble            1.13  2.26  84.3% (78.2-87.6) 64.8% (56.7-71.1) 43.5% (35.2-51.3)  18/20/63
+Marcadores más probables (ensamble): 1-2 9.4%, 0-2 8.7%, 1-1 8.7%, 0-1 7.9%, 1-3 7.0%, 0-3 6.4%, 2-2 5.2%, 2-1 4.7%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 64.8% | mercado sin margen 76.1% | cuota 1.23 (justa 1.54) | VE -20.3% | mercado FUERA del intervalo
+Under 2.5: modelo 35.2% | mercado sin margen 23.9% | cuota 3.91 (justa 2.84) | VE +37.5% | mercado FUERA del intervalo
+Hándicap asiático local +2.00: VE local +30.4% | VE visitante -41.0%
+Gráfica: predicciones/2026-11-27_proximos/La_Coruna_vs_Barcelona_2026_11_29.png
+
+=== Celta vs Villarreal (2026-11-29) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.47  1.49  79.9% (72.4-85.8) 56.7% (46.4-66.2) 34.3% (24.9-44.3)  37/25/38
+RegresionPoisson    1.25  1.11  68.4% (63.9-74.2) 42.1% (37.0-49.4) 21.4% (17.5-27.5)  39/28/33
+GradientBoosting    1.51  1.19  75.1% (54.5-85.2) 50.7% (27.7-65.8) 28.6% (11.3-43.9)  45/25/30
+Bayesiano           1.45  1.33  76.5% (68.7-85.5) 52.6% (42.4-66.4) 30.3% (21.7-44.6)  40/25/35
+Ensamble            1.42  1.28  75.0% (70.8-80.2) 50.5% (45.7-58.3) 28.7% (25.0-36.2)  40/26/34
+Marcadores más probables (ensamble): 1-1 12.2%, 1-0 9.5%, 2-1 8.6%, 0-1 8.5%, 1-2 7.7%, 0-0 7.0%, 2-0 6.8%, 2-2 5.5%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 50.5% | mercado sin margen 54.0% | cuota 1.73 (justa 1.98) | VE -12.6% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 49.5% | mercado sin margen 46.0% | cuota 2.03 (justa 2.02) | VE +0.5% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local +0.00: VE local +4.9% | VE visitante -13.6%
+Gráfica: predicciones/2026-11-27_proximos/Celta_vs_Villarreal_2026_11_29.png
+
+=== Sociedad vs Sevilla (2026-11-29) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.98  1.29  84.2% (78.7-89.2) 63.5% (55.0-72.3) 41.3% (32.6-51.7)  53/23/25
+RegresionPoisson    1.59  0.97  72.5% (65.0-79.5) 47.1% (38.3-56.8) 25.5% (18.5-34.4)  52/25/23
+GradientBoosting    1.57  1.71  83.9% (66.5-93.9) 63.7% (39.9-82.6) 41.6% (19.7-65.7)  36/23/41
+Bayesiano           1.54  1.30  77.5% (68.9-86.1) 53.9% (42.7-67.3) 31.6% (21.9-45.6)  43/25/32
+Ensamble            1.67  1.32  79.5% (74.7-83.9) 57.0% (50.3-64.5) 35.0% (28.7-43.5)  46/24/30
+Marcadores más probables (ensamble): 1-1 11.0%, 2-1 9.0%, 1-0 8.6%, 2-0 7.2%, 1-2 7.1%, 0-1 6.5%, 2-2 5.9%, 0-0 5.4%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 57.0% | mercado sin margen 53.1% | cuota 1.75 (justa 1.75) | VE -0.2% | mercado dentro del intervalo: valor no fiable
+Under 2.5: modelo 43.0% | mercado sin margen 46.9% | cuota 1.98 (justa 2.33) | VE -14.9% | mercado dentro del intervalo: valor no fiable
+Hándicap asiático local -0.25: VE local -5.0% | VE visitante -6.7%
+Gráfica: predicciones/2026-11-27_proximos/Sociedad_vs_Sevilla_2026_11_29.png
+
+=== Espanol vs Getafe (2026-11-30) ===
+Alertas: SIN_CONTEXTO
+Alerta: SIN_CONSENSO (no se recomienda apostar)
+Modelo                 λ     μ           Over 1.5          Over 2.5          Over 3.5  1 / X / 2
+DixonColes          1.09  0.68  53.2% (46.0-62.9) 26.0% (20.1-35.5) 10.3% ( 7.1-16.4)  45/33/22
+RegresionPoisson    1.11  0.72  54.7% (48.2-61.7) 27.9% (22.2-34.6) 11.4% ( 8.2-15.9)  45/32/24
+GradientBoosting    1.20  0.79  59.1% (41.6-74.5) 32.0% (17.2-49.8) 14.1% ( 5.6-27.9)  46/30/24
+Bayesiano           1.31  1.01  67.3% (57.7-77.9) 40.9% (30.7-54.5) 20.4% (13.2-32.2)  43/28/29
+Ensamble            1.18  0.80  58.6% (52.3-64.4) 31.7% (26.0-37.8) 14.1% (10.7-18.4)  45/31/25
+Marcadores más probables (ensamble): 1-0 16.3%, 0-0 14.3%, 1-1 13.0%, 0-1 10.8%, 2-0 9.6%, 2-1 7.6%, 1-2 5.1%, 0-2 4.3%
+Suma de la matriz del ensamble: 1.000000
+Over 2.5: modelo 31.7% | mercado sin margen 38.7% | cuota 2.41 (justa 3.16) | VE -23.6% | mercado FUERA del intervalo
+Under 2.5: modelo 68.3% | mercado sin margen 61.3% | cuota 1.52 (justa 1.46) | VE +3.8% | mercado FUERA del intervalo
+Hándicap asiático local -0.50: VE local -10.8% | VE visitante -3.6%
+Gráfica: predicciones/2026-11-27_proximos/Espanol_vs_Getafe_2026_11_30.png
+
+Resumen: predicciones/2026-11-27_proximos/resumen.md
+Portafolio: predicciones/2026-11-27_proximos/portafolio.md (2 apuestas)
