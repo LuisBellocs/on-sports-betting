@@ -9,3 +9,13 @@ fecha,local,visitante,carpeta,modelo,p_over25,prediccion,goles_reales,acierto
 2026-11-22,Osasuna,Malaga,jornada13_2627,modelo-20261109-2156,0.5546,over,1,0
 2026-11-22,Santander,Sociedad,jornada13_2627,modelo-20261109-2156,0.6756,over,5,1
 2026-11-23,Levante,Elche,jornada13_2627,modelo-20261109-2156,0.64,over,2,0
+2026-11-27,Levante,Santander,2026-11-27_proximos,modelo-20261124-1320,0.7378,over,,
+2026-11-28,Betis,Vallecano,2026-11-27_proximos,modelo-20261124-1320,0.5996,over,,
+2026-11-28,Elche,Ath Madrid,2026-11-27_proximos,modelo-20261124-1320,0.5584,over,,
+2026-11-28,Malaga,Ath Bilbao,2026-11-27_proximos,modelo-20261124-1320,0.4377,under,,
+2026-11-28,Real Madrid,Alaves,2026-11-27_proximos,modelo-20261124-1320,0.6653,over,,
+2026-11-29,Celta,Villarreal,2026-11-27_proximos,modelo-20261124-1320,0.505,over,,
+2026-11-29,La Coruna,Barcelona,2026-11-27_proximos,modelo-20261124-1320,0.6483,over,,
+2026-11-29,Sociedad,Sevilla,2026-11-27_proximos,modelo-20261124-1320,0.5702,over,,
+2026-11-29,Valencia,Osasuna,2026-11-27_proximos,modelo-20261124-1320,0.3965,under,,
+2026-11-30,Espanol,Getafe,2026-11-27_proximos,modelo-20261124-1320,0.3169,under,,
